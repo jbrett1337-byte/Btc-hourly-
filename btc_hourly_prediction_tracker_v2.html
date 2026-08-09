@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BTC Hourly Prediction Tracker V2</title>
+<style>
+:root{--bg:#080c11;--panel:#111821;--panel2:#0c1219;--line:#24303e;--text:#eef3f8;--muted:#8996a6;--green:#32d583;--red:#ff5b68;--yellow:#f5c451;--blue:#5ba9ff;--purple:#a77bff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#152238 0,#080c11 38%);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:1250px;margin:auto;padding:16px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}.brand h1{margin:0;font-size:22px}.brand p{margin:4px 0 0;color:var(--muted);font-size:12px}.status{padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-size:12px}.online{color:var(--green)}.offline{color:var(--yellow)}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.card{background:rgba(17,24,33,.96);border:1px solid var(--line);border-radius:13px;padding:12px}.label{font-size:11px;color:var(--muted)}.value{font-size:21px;font-weight:800;margin-top:5px}.green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.blue{color:var(--blue)}.purple{color:var(--purple)}
+.panel{margin-top:12px;background:rgba(17,24,33,.96);border:1px solid var(--line);border-radius:13px;padding:14px}.panel h2{font-size:14px;margin:0 0 11px}.form{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}.field label{display:block;color:var(--muted);font-size:10px;margin-bottom:4px}.field input,.field select{width:100%;background:#0a1017;color:var(--text);border:1px solid #293747;border-radius:8px;padding:9px;font-size:13px}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}button{background:#182330;color:var(--text);border:1px solid #304052;border-radius:8px;padding:9px 12px;font-weight:700;cursor:pointer}button:hover{filter:brightness(1.15)}button.primary{background:#145d3d;border-color:#26895c}.danger{background:#401921;border-color:#672b36}.note{color:var(--muted);font-size:11px;line-height:1.5}
+.prediction{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:10px}.hero{background:linear-gradient(145deg,#101c29,#10161e);border:1px solid var(--line);border-radius:13px;padding:15px}.hero .big{font-size:32px;font-weight:850}.hero small{color:var(--muted)}.meter{height:8px;background:#202a35;border-radius:20px;overflow:hidden;margin-top:8px}.meter i{display:block;height:100%;background:var(--blue);width:0}
+.chart{height:290px;background:#090e14;border:1px solid #202b38;border-radius:10px;position:relative}.chart canvas{width:100%;height:100%}
+.table-wrap{overflow:auto}.table{width:100%;min-width:1000px;border-collapse:collapse}.table th,.table td{padding:8px;border-bottom:1px solid #202a35;text-align:left;font-size:11px}.table th{color:var(--muted)}.pill{display:inline-block;padding:4px 7px;border-radius:99px;font-size:10px;font-weight:800}.up{background:#123d2b;color:var(--green)}.down{background:#411a22;color:var(--red)}.flat{background:#3b3115;color:var(--yellow)}.pending{background:#202b38;color:#aab5c2}.mini{padding:6px 8px;font-size:10px}
+@media(max-width:950px){.grid{grid-template-columns:repeat(3,1fr)}.form{grid-template-columns:repeat(3,1fr)}.prediction{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.wrap{padding:9px}.grid{grid-template-columns:repeat(2,1fr)}.form{grid-template-columns:1fr 1fr}.prediction{grid-template-columns:1fr}.value{font-size:19px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+ <div class="brand"><h1>₿ BTC Hourly Prediction Tracker V2</h1><p>Live BTC feed when online • offline-first history • heuristic 1H model</p></div>
+ <div id="status" class="status offline">● Offline / manual</div>
+</header>
+
+<div class="grid">
+ <div class="card"><div class="label">BTC</div><div id="btc" class="value">—</div></div>
+ <div class="card"><div class="label">1H Target</div><div id="targetStat" class="value blue">—</div></div>
+ <div class="card"><div class="label">Bias</div><div id="biasStat" class="value">—</div></div>
+ <div class="card"><div class="label">Confidence</div><div id="confStat" class="value purple">—</div></div>
+ <div class="card"><div class="label">Support</div><div id="supportStat" class="value green">—</div></div>
+ <div class="card"><div class="label">Resistance</div><div id="resStat" class="value red">—</div></div>
+</div>
+
+<section class="panel">
+ <h2>Live / Model Controls</h2>
+ <div class="form">
+  <div class="field"><label>BTC Price (manual fallback)</label><input id="price" type="number" step=".01" placeholder="64950"></div>
+  <div class="field"><label>VWAP</label><input id="vwap" type="number" step=".01" placeholder="optional"></div>
+  <div class="field"><label>EMA 20</label><input id="ema20" type="number" step=".01" placeholder="optional"></div>
+  <div class="field"><label>EMA 50</label><input id="ema50" type="number" step=".01" placeholder="optional"></div>
+  <div class="field"><label>Support</label><input id="support" type="number" step=".01" placeholder="optional"></div>
+  <div class="field"><label>Resistance</label><input id="resistance" type="number" step=".01" placeholder="optional"></div>
+  <div class="field"><label>24H High</label><input id="high24" type="number" step=".01"></div>
+  <div class="field"><label>24H Low</label><input id="low24" type="number" step=".01"></div>
+  <div class="field"><label>24H Change %</label><input id="change24" type="number" step=".01"></div>
+  <div class="field"><label>Model Risk</label><select id="risk"><option value="0.0025">Normal</option><option value="0.0015">Conservative</option><option value="0.004">Aggressive</option></select></div>
+ </div>
+ <div class="actions">
+  <button class="primary" onclick="refreshPrice()">↻ Fetch BTC Price</button>
+  <button onclick="generatePrediction()">⚡ Generate 1H Prediction</button>
+  <button onclick="savePrediction()">＋ Save Hour</button>
+  <button onclick="startAuto()">▶ Auto Refresh</button>
+  <button onclick="stopAuto()">■ Stop</button>
+  <button onclick="exportJSON()">Export JSON</button>
+  <button onclick="exportCSV()">Export CSV</button>
+  <button class="danger" onclick="clearAll()">Clear History</button>
+ </div>
+ <p class="note">Online mode uses a public BTC market endpoint. If it is unavailable, the tool keeps working with your manual price/levels. The prediction engine is a transparent heuristic—not financial advice and not a guaranteed forecast.</p>
+</section>
+
+<section class="panel">
+ <h2>Current Model</h2>
+ <div class="prediction">
+  <div class="hero"><small>1H predicted price</small><div id="heroTarget" class="big">—</div><div id="heroMove">—</div></div>
+  <div class="hero"><small>Predicted range</small><div id="range" class="value">—</div><div class="note">Model-derived range</div></div>
+  <div class="hero"><small>Signal score</small><div id="score" class="value">—</div><div class="note">EMA/VWAP/structure inputs</div></div>
+  <div class="hero"><small>Confidence</small><div id="heroConf" class="value purple">—</div><div class="meter"><i id="meter"></i></div></div>
+ </div>
+</section>
+
+<section class="panel">
+ <h2>Price / Prediction History</h2>
+ <div class="chart"><canvas id="chart"></canvas></div>
+</section>
+
+<section class="panel">
+ <h2>Hourly Results</h2>
+ <div class="table-wrap"><table class="table"><thead><tr><th>Time</th><th>Price</th><th>Target</th><th>Actual</th><th>Bias</th><th>Conf.</th><th>Support</th><th>Resistance</th><th>Score</th><th>Result</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+</section>
+<p class="note" style="padding:8px 0">V2 stores data in this browser's localStorage. For serious use, export your history regularly.</p>
+</div>
+
+<script>
+const KEY="btc_hourly_predictions_v2";
+let data=JSON.parse(localStorage.getItem(KEY)||"[]"), auto=null, model=null;
+const $=id=>document.getElementById(id);
+const num=id=>{const v=parseFloat($(id).value);return Number.isFinite(v)?v:null};
+const money=x=>x==null||!Number.isFinite(+x)?"—":"$"+Number(x).toLocaleString(undefined,{maximumFractionDigits:2});
+const pct=x=>x==null||!Number.isFinite(+x)?"—":Number(x).toFixed(1)+"%";
+function save(){localStorage.setItem(KEY,JSON.stringify(data));render()}
+function status(text,cls){$("status").textContent="● "+text;$("status").className="status "+cls}
+
+async function refreshPrice(){
+ status("Fetching BTC…","yellow");
+ try{
+  const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_high=true&include_24hr_low=true",{cache:"no-store"});
+  if(!r.ok)throw new Error();
+  const j=await r.json(),b=j.bitcoin;
+  $("price").value=b.usd;
+  $("change24").value=Number(b.usd_24h_change||0).toFixed(2);
+  $("high24").value=b.usd_24h_high||"";
+  $("low24").value=b.usd_24h_low||"";
+  status("Online • BTC feed connected","online");
+  generatePrediction();
+ }catch(e){status("Offline / feed unavailable","offline");generatePrediction()}
+}
+
+function inferLevels(p){
+ let s=num("support"),r=num("resistance"),h=num("high24"),l=num("low24");
+ if(!s)s=l?l+(p-l)*.18:p*.992;
+ if(!r)r=h?h-(h-p)*.18:p*1.008;
+ return {s,r}
+}
+function generatePrediction(){
+ const p=num("price");if(!p){model=null;render();return}
+ const v=num("vwap"),e20=num("ema20"),e50=num("ema50"),chg=num("change24")||0,{s,r}=inferLevels(p);
+ let score=0, reasons=[];
+ if(v){if(p>v){score+=1;reasons.push("above VWAP")}else{score-=1;reasons.push("below VWAP")}}
+ if(e20){if(p>e20){score+=1;reasons.push("above EMA20")}else{score-=1;reasons.push("below EMA20")}}
+ if(e50){if(p>e50){score+=1;reasons.push("above EMA50")}else{score-=1;reasons.push("below EMA50")}}
+ if(chg>.35){score+=1;reasons.push("positive 24H momentum")} if(chg<-.35){score-=1;reasons.push("negative 24H momentum")}
+ const distS=(p-s)/p,distR=(r-p)/p;
+ if(distS<.004){score+=.7;reasons.push("near support")} if(distR<.004){score-=.7;reasons.push("near resistance")}
+ const maxScore=(v?1:0)+(e20?1:0)+(e50?1:0)+1+.7+.7;
+ const normalized=Math.max(-1,Math.min(1,score/maxScore));
+ const risk=+$("risk").value;
+ let move=normalized*risk;
+ if(Math.abs(normalized)<.15)move=chg/100*.18;
+ const target=p*(1+move), range=p*risk;
+ const confidence=Math.min(94,Math.max(50,50+Math.abs(normalized)*42));
+ const bias=move>.00025?"up":move<-.00025?"down":"flat";
+ model={p,target,high:target+range*.65,low:target-range*.65,s,r,score,confidence,bias,reasons,move};
+ render();
+}
+function savePrediction(){
+ if(!model){alert("Enter/fetch a BTC price and generate a prediction first.");return}
+ const x={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),time:new Date().toISOString(),price:model.p,target:model.target,high:model.high,low:model.low,
+  actual:null,direction:model.bias,confidence:model.confidence,support:model.s,resistance:model.r,vwap:num("vwap"),ema20:num("ema20"),ema50:num("ema50"),change24:num("change24"),score:model.score,reasons:model.reasons};
+ data.unshift(x);save();
+}
+function result(x){
+ if(x.actual==null)return null;
+ const a=+x.actual, move=a-x.price, pred=x.target-x.price;
+ return {correct:x.direction==="flat"?Math.abs(move)<x.price*.001:Math.sign(pred)===Math.sign(move),err:Math.abs(a-x.target),errPct:Math.abs(a-x.target)/x.target*100};
+}
+function setActual(id,val){const x=data.find(a=>a.id===id);if(!x)return;x.actual=val===""?null:+val;save()}
+function del(id){data=data.filter(x=>x.id!==id);save()}
+function render(){
+ const p=num("price");$("btc").textContent=money(p);$("targetStat").textContent=model?money(model.target):"—";$("biasStat").textContent=model?(model.bias==="up"?"Bullish ↑":model.bias==="down"?"Bearish ↓":"Neutral →"):"—";$("confStat").textContent=model?pct(model.confidence):"—";$("supportStat").textContent=model?money(model.s):"—";$("resStat").textContent=model?money(model.r):"—";
+ $("heroTarget").textContent=model?money(model.target):"—";$("heroMove").textContent=model?(model.move>=0?"+":"")+pct(model.move*100):"—";$("range").textContent=model?money(model.low)+" – "+money(model.high):"—";$("score").textContent=model?model.score.toFixed(2):"—";$("heroConf").textContent=model?pct(model.confidence):"—";$("meter").style.width=model?model.confidence+"%":"0%";
+ $("rows").innerHTML=data.map(x=>{const z=result(x);return `<tr><td>${new Date(x.time).toLocaleString([], {month:"numeric",day:"numeric",hour:"numeric",minute:"2-digit"})}</td><td>${money(x.price)}</td><td>${money(x.target)}</td><td><input style="width:105px;background:#0a1017;color:#eef3f8;border:1px solid #293747;border-radius:6px;padding:6px" type="number" step=".01" value="${x.actual??""}" placeholder="Actual" onchange="setActual('${x.id}',this.value)"></td><td><span class="pill ${x.direction}">${x.direction==="up"?"Bullish ↑":x.direction==="down"?"Bearish ↓":"Neutral →"}</span></td><td>${pct(x.confidence)}</td><td>${money(x.support)}</td><td>${money(x.resistance)}</td><td>${z?money(z.err):"—"}</td><td>${z?`<span class="pill ${z.correct?"up":"down"}">${z.correct?"WIN":"LOSS"}</span>`:`<span class="pill pending">PENDING</span>`}</td><td><button class="mini danger" onclick="del('${x.id}')">Delete</button></td></tr>`}).join("");
+ draw();
+}
+function draw(){
+ const c=$("chart"),ctx=c.getContext("2d"),r=c.getBoundingClientRect(),d=devicePixelRatio||1;c.width=r.width*d;c.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,r.width,r.height);
+ const pts=data.slice().reverse().filter(x=>x.actual!=null);if(!pts.length){ctx.fillStyle="#8996a6";ctx.font="13px system-ui";ctx.fillText("Enter actual prices after each hour to compare predictions.",16,28);return}
+ const vals=pts.flatMap(x=>[+x.target,+x.actual]),min=Math.min(...vals),max=Math.max(...vals),pad={l:55,r:15,t:24,b:25},w=r.width-pad.l-pad.r,h=r.height-pad.t-pad.b;
+ ctx.strokeStyle="#24303e";ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+h);ctx.lineTo(pad.l+w,pad.t+h);ctx.stroke();
+ const plot=(key,dash)=>{ctx.strokeStyle=dash?"#8996a6":"#5ba9ff";ctx.lineWidth=2;ctx.setLineDash(dash?[5,5]:[]);ctx.beginPath();pts.forEach((x,i)=>{const xx=pad.l+(pts.length===1?w/2:i*w/(pts.length-1)),yy=pad.t+(max-x[key])/(max-min)*h;i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.stroke();ctx.setLineDash([])};plot("target",true);plot("actual",false);
+ ctx.fillStyle="#8996a6";ctx.font="11px system-ui";ctx.fillText(money(max),4,pad.t+4);ctx.fillText(money(min),4,pad.t+h);ctx.fillText("Actual",pad.l,15);ctx.fillText("Target",pad.l+52,15);
+}
+function exportJSON(){download("btc-v2-history.json",JSON.stringify(data,null,2),"application/json")}
+function exportCSV(){const c=["time","price","target","actual","direction","confidence","support","resistance","vwap","ema20","ema50","change24","score","reasons"];download("btc-v2-history.csv",[c.join(","),...data.map(x=>c.map(k=>`"${String(x[k]??"").replace(/"/g,'""')}"`).join(","))].join("\n"),"text/csv")}
+function download(n,t,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function clearAll(){if(confirm("Delete all V2 history?")){data=[];save()}}
+function startAuto(){stopAuto();refreshPrice();auto=setInterval(refreshPrice,60000);status("Auto-refresh • every 60s","online")}
+function stopAuto(){if(auto){clearInterval(auto);auto=null}if(!navigator.onLine)status("Offline / manual","offline")}
+$("price").addEventListener("input",generatePrediction);["vwap","ema20","ema50","support","resistance","high24","low24","change24","risk"].forEach(id=>$(id).addEventListener("input",generatePrediction));window.addEventListener("resize",draw);window.addEventListener("online",()=>status("Online","online"));window.addEventListener("offline",()=>status("Offline / manual","offline"));
+generatePrediction();render();
+</script>
+</body>
+</html>
