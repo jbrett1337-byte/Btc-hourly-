@@ -2,277 +2,186 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JB BTC Prediction Engine V4</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JB BTC Prediction Engine V4.1</title>
 <style>
-:root{--bg:#0b0f14;--panel:#111820;--panel2:#151e28;--text:#e9eef5;--muted:#8d9aaa;--line:#263241;--green:#39d98a;--red:#ff5d6c;--yellow:#ffd166;--cyan:#55c7ff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Arial,sans-serif}
-header{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-h1{font-size:20px;margin:0}.sub{color:var(--muted);font-size:12px;margin-top:4px}
-.status{display:flex;gap:8px;align-items:center}.dot{width:9px;height:9px;border-radius:50%;background:var(--red)}.dot.on{background:var(--green)}
-main{padding:14px;max-width:1500px;margin:auto}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}.label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}.big{font-size:25px;font-weight:700;margin-top:6px}
-.green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.cyan{color:var(--cyan)}
-.section{margin-top:12px}.section h2{font-size:14px;margin:0 0 8px}.projection{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:12px}th{color:var(--muted);font-weight:600;background:var(--panel2)}
-tr:last-child td{border-bottom:0}.bar{height:7px;background:#202a35;border-radius:10px;overflow:hidden}.fill{height:100%;background:var(--green)}
-.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-button,select{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:8px 10px}
-button{cursor:pointer}button:hover{border-color:#4b6078}
-#chart{width:100%;height:300px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
-.note{color:var(--muted);font-size:11px;line-height:1.5}.signal{font-size:18px;font-weight:700}
-.pill{display:inline-block;padding:4px 7px;border-radius:99px;background:var(--panel2);font-size:11px}
+:root{--bg:#0b0f14;--p:#111820;--p2:#151e28;--t:#e9eef5;--m:#8d9aaa;--l:#263241;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
+header{padding:16px;border-bottom:1px solid var(--l);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{margin:0;font-size:20px}.sub{color:var(--m);font-size:12px;margin-top:4px}.status{display:flex;gap:8px;align-items:center}.dot{width:9px;height:9px;border-radius:50%;background:var(--r)}.dot.on{background:var(--g)}
+main{max-width:1500px;margin:auto;padding:14px}.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+button,select{background:var(--p2);color:var(--t);border:1px solid var(--l);border-radius:7px;padding:9px 10px}button{cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.card{background:var(--p);border:1px solid var(--l);border-radius:10px;padding:12px}
+.label{color:var(--m);font-size:11px;text-transform:uppercase;letter-spacing:.5px}.big{font-size:25px;font-weight:700;margin-top:6px}
+.green{color:var(--g)}.red{color:var(--r)}.yellow{color:var(--y)}.cyan{color:var(--c)}.signal{font-size:18px;font-weight:700}
+.section{margin-top:13px}.section h2{font-size:14px;margin:0 0 8px}.projection{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+table{width:100%;border-collapse:collapse;background:var(--p);border:1px solid var(--l);border-radius:10px;overflow:hidden}
+th,td{padding:9px 8px;border-bottom:1px solid var(--l);text-align:left;font-size:12px}th{background:var(--p2);color:var(--m)}
+tr:last-child td{border:0}.bar{height:7px;background:#202a35;border-radius:10px;overflow:hidden}.fill{height:100%;background:var(--g)}
+.pill{display:inline-block;padding:4px 7px;border-radius:99px;background:var(--p2);font-size:11px}.note{color:var(--m);font-size:11px;line-height:1.5}
+#chart{width:100%;height:300px;background:var(--p);border:1px solid var(--l);border-radius:10px}
+#error{display:none;margin-top:10px;padding:10px;border:1px solid #59323a;background:#1b1115;border-radius:8px;color:#ff9aa4;font-size:12px}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.projection{grid-template-columns:1fr}}
 @media(max-width:560px){.grid{grid-template-columns:1fr}th:nth-child(5),td:nth-child(5){display:none}}
 </style>
 </head>
 <body>
 <header>
-  <div><h1>JB BTC Prediction Engine V4</h1><div class="sub">Live volatility projection • multi-hour forecasts • dynamic ETA</div></div>
-  <div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
+<div><h1>JB BTC Prediction Engine V4.1</h1><div class="sub">GitHub Pages live-data build • volatility • multi-hour forecasts • dynamic ETA</div></div>
+<div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
 </header>
-
 <main>
-  <div class="controls">
-    <select id="symbol"><option value="BTCUSDT">BTC / USDT</option><option value="ETHUSDT">ETH / USDT</option></select>
-    <select id="tf"><option value="1m">1m</option><option value="5m" selected>5m</option><option value="15m">15m</option><option value="1h">1h</option></select>
-    <button id="refresh">Refresh data</button>
-    <button id="pause">Pause live</button>
-  </div>
+<div class="controls">
+<select id="symbol"><option value="BTC-USD">BTC / USD</option><option value="ETH-USD">ETH / USD</option></select>
+<select id="tf"><option value="ONE_MINUTE">1m</option><option value="FIVE_MINUTE" selected>5m</option><option value="FIFTEEN_MINUTE">15m</option><option value="ONE_HOUR">1h</option></select>
+<button id="refresh">Refresh data</button><button id="pause">Pause live</button>
+</div>
+<div id="error"></div>
 
-  <div class="grid">
-    <div class="card"><div class="label">Live Price</div><div id="price" class="big">—</div></div>
-    <div class="card"><div class="label">24h Change</div><div id="change" class="big">—</div></div>
-    <div class="card"><div class="label">Realized Volatility</div><div id="vol" class="big">—</div></div>
-    <div class="card"><div class="label">ATR</div><div id="atr" class="big">—</div></div>
-  </div>
+<div class="grid">
+<div class="card"><div class="label">Live Price</div><div id="price" class="big">—</div></div>
+<div class="card"><div class="label">24h Change</div><div id="change" class="big">—</div></div>
+<div class="card"><div class="label">Realized Volatility</div><div id="vol" class="big">—</div></div>
+<div class="card"><div class="label">ATR</div><div id="atr" class="big">—</div></div>
+</div>
 
-  <div class="section">
-    <h2>Live Prediction</h2>
-    <div class="grid">
-      <div class="card"><div class="label">Direction</div><div id="direction" class="signal">—</div><div id="score" class="sub">Score —</div></div>
-      <div class="card"><div class="label">UP Probability</div><div id="up" class="big green">—</div><div class="bar"><div id="upbar" class="fill" style="width:0%"></div></div></div>
-      <div class="card"><div class="label">DOWN Probability</div><div id="down" class="big red">—</div><div class="bar"><div id="downbar" class="fill" style="width:0%;background:var(--red)"></div></div></div>
-      <div class="card"><div class="label">Confidence</div><div id="confidence" class="big yellow">—</div></div>
-    </div>
-  </div>
+<div class="section"><h2>Live Prediction</h2><div class="grid">
+<div class="card"><div class="label">Direction</div><div id="direction" class="signal">—</div><div id="score" class="sub">Score —</div></div>
+<div class="card"><div class="label">UP Probability</div><div id="up" class="big green">—</div><div class="bar"><div id="upbar" class="fill" style="width:0%"></div></div></div>
+<div class="card"><div class="label">DOWN Probability</div><div id="down" class="big red">—</div><div class="bar"><div id="downbar" class="fill" style="width:0%;background:var(--r)"></div></div></div>
+<div class="card"><div class="label">Confidence</div><div id="confidence" class="big yellow">—</div></div>
+</div></div>
 
-  <div class="section">
-    <h2>Forward-Looking Volatility Projection</h2>
-    <div class="projection">
-      <div class="card">
-        <div class="label">Bullish Projection</div>
-        <div id="bull" class="big green">—</div>
-        <div id="bullmeta" class="sub">—</div>
-      </div>
-      <div class="card">
-        <div class="label">Bearish Projection</div>
-        <div id="bear" class="big red">—</div>
-        <div id="bearmeta" class="sub">—</div>
-      </div>
-    </div>
-  </div>
+<div class="section"><h2>Forward-Looking Volatility Projection</h2><div class="projection">
+<div class="card"><div class="label">Bullish Projection</div><div id="bull" class="big green">—</div><div id="bullmeta" class="sub">—</div></div>
+<div class="card"><div class="label">Bearish Projection</div><div id="bear" class="big red">—</div><div id="bearmeta" class="sub">—</div></div>
+</div></div>
 
-  <div class="section">
-    <h2>Estimated Time to Each Level</h2>
-    <table>
-      <thead><tr><th>Level</th><th>Target</th><th>Move</th><th>ETA</th><th>Probability</th><th>Status</th></tr></thead>
-      <tbody id="levels"></tbody>
-    </table>
-  </div>
+<div class="section"><h2>Estimated Time to Each Level</h2><table><thead><tr><th>Level</th><th>Target</th><th>Move</th><th>ETA</th><th>Probability</th><th>Status</th></tr></thead><tbody id="levels"></tbody></table></div>
 
-  <div class="section">
-    <h2>Multi-Hour Prediction</h2>
-    <table>
-      <thead><tr><th>Horizon</th><th>Direction</th><th>Probability</th><th>Expected Range</th><th>Median Target</th><th>ETA</th></tr></thead>
-      <tbody id="hours"></tbody>
-    </table>
-  </div>
+<div class="section"><h2>Multi-Hour Prediction</h2><table><thead><tr><th>Horizon</th><th>Direction</th><th>Probability</th><th>Expected Range</th><th>Median Target</th><th>ETA</th></tr></thead><tbody id="hours"></tbody></table></div>
 
-  <div class="section">
-    <h2>Price / Volatility Map</h2>
-    <canvas id="chart"></canvas>
-  </div>
+<div class="section"><h2>Price / Volatility Map</h2><canvas id="chart"></canvas></div>
 
-  <div class="section">
-    <div class="card">
-      <div class="label">Model Inputs</div>
-      <div id="inputs" class="note">Waiting for candles…</div>
-      <p class="note">This is a quantitative projection tool, not a guarantee. ETAs are estimates derived from recent realized movement and volatility. The model intentionally shows probability/range rather than claiming an exact future price.</p>
-    </div>
-  </div>
+<div class="section"><div class="card"><div class="label">Model Inputs</div><div id="inputs" class="note">Waiting for candles…</div>
+<p class="note">The tool estimates probabilities and ranges from market data; it does not guarantee a future price. ETAs dynamically use recent movement and volatility.</p></div></div>
 </main>
 
 <script>
-const API='https://api.binance.com/api/v3';
-const WS='wss://stream.binance.com:9443/ws';
-let symbol='BTCUSDT', timeframe='5m', candles=[], livePrice=0, ws=null, paused=false, lastTick=0;
+const CB='https://api.exchange.coinbase.com';
+const WS='wss://advanced-trade-ws.coinbase.com';
+let symbol='BTC-USD',tf='FIVE_MINUTE',candles=[],livePrice=0,ws=null,paused=false,lastDraw=0,reconnectTimer=null;
 
-const $=id=>document.getElementById(id);
+const $=x=>document.getElementById(x);
 function fmt(n,d=2){return Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d})}
-function pct(n,d=2){return (n*100).toFixed(d)+'%'}
+function pct(x,d=2){return (x*100).toFixed(d)+'%'}
 function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
-function tfMin(tf){return ({'1m':1,'5m':5,'15m':15,'1h':60}[tf]||5)}
-function horizonMin(m){return m}
-function sigmoid(x){return 1/(1+Math.exp(-x))}
+function tfMin(){return ({ONE_MINUTE:1,FIVE_MINUTE:5,FIFTEEN_MINUTE:15,ONE_HOUR:60}[tf]||5)}
+function mean(a){return a.length?a.reduce((s,x)=>s+x,0)/a.length:0}
+function sd(a){let m=mean(a);return a.length?Math.sqrt(mean(a.map(x=>(x-m)**2))):0}
+function returns(){let r=[];for(let i=1;i<candles.length;i++)r.push(Math.log(candles[i].c/candles[i-1].c));return r}
+function ema(n){if(candles.length<n)return livePrice;let e=mean(candles.slice(0,n).map(x=>x.c)),k=2/(n+1);for(let i=n;i<candles.length;i++)e=candles[i].c*k+e*(1-k);return e}
+function rsi(n=14){if(candles.length<n+1)return 50;let g=0,l=0;for(let i=candles.length-n;i<candles.length;i++){let d=candles[i].c-candles[i-1].c;if(d>=0)g+=d;else l-=d}return l?100-100/(1+g/l):100}
+function atr(n=14){if(candles.length<n+1)return 0;let tr=[];for(let i=candles.length-n;i<candles.length;i++){let c=candles[i],p=candles[i-1].c;tr.push(Math.max(c.h-c.l,Math.abs(c.h-p),Math.abs(c.l-p)))}return mean(tr)}
+function setStatus(ok,text){$('dot').className='dot'+(ok?' on':'');$('conn').textContent=text}
+function showError(msg){$('error').style.display='block';$('error').textContent=msg}
+function clearError(){$('error').style.display='none'}
 
+async function getJson(url){
+ const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();
+}
 async function load(){
-  symbol=$('symbol').value; timeframe=$('tf').value;
-  try{
-    const [kl, ticker]=await Promise.all([
-      fetch(`${API}/klines?symbol=${symbol}&interval=${timeframe}&limit=500`).then(r=>r.json()),
-      fetch(`${API}/ticker/24hr?symbol=${symbol}`).then(r=>r.json())
-    ]);
-    candles=kl.map(x=>({t:x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));
-    livePrice=+ticker.lastPrice;
-    $('change').textContent=(+ticker.priceChangePercent).toFixed(2)+'%';
-    $('change').className='big '+(+ticker.priceChangePercent>=0?'green':'red');
-    calculate();
-    connect();
-  }catch(e){$('conn').textContent='Data error';console.error(e)}
+ clearError();symbol=$('symbol').value;tf=$('tf').value;
+ try{
+  // Coinbase candles max 300 points per request; this is enough for the model.
+  const end=new Date(), start=new Date(end.getTime()-300*tfMin()*60000);
+  const url=`${CB}/products/${symbol}/candles?granularity=${tf}&start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`;
+  const data=await getJson(url);
+  if(!Array.isArray(data)||!data.length)throw new Error('No candle data returned');
+  candles=data.map(x=>({t:x[0]*1000,l:+x[1],h:+x[2],o:+x[3],c:+x[4],v:+x[5]})).sort((a,b)=>a.t-b.t);
+  const stats=await getJson(`${CB}/products/${symbol}/stats`);
+  livePrice=+(await getJson(`${CB}/products/${symbol}/ticker`)).price;
+  const open=+stats.open;
+  $('change').textContent=((livePrice/open-1)*100).toFixed(2)+'%';
+  $('change').className='big '+(livePrice>=open?'green':'red');
+  calculate();connect();
+ }catch(e){
+  setStatus(false,'Data error');showError('Live market data could not be loaded: '+e.message+'. Retrying automatically…');
+  setTimeout(()=>{if(!paused)load()},5000);
+ }
 }
+
 function connect(){
-  if(ws) try{ws.close()}catch(e){}
-  const stream=`${symbol.toLowerCase()}@kline_${timeframe}`;
-  ws=new WebSocket(`${WS}/${stream}`);
-  ws.onopen=()=>{ $('dot').className='dot on';$('conn').textContent='Live'; };
-  ws.onclose=()=>{ $('dot').className='dot';$('conn').textContent='Reconnecting…'; if(!paused)setTimeout(connect,2500)};
-  ws.onerror=()=>{};
-  ws.onmessage=e=>{
-    if(paused)return;
-    const k=JSON.parse(e.data).k;
-    livePrice=+k.c;
-    const item={t:k.t,o:+k.o,h:+k.h,l:+k.l,c:+k.c,v:+k.v};
-    if(candles.length && candles[candles.length-1].t===item.t)candles[candles.length-1]=item;
-    else candles.push(item);
-    if(candles.length>500)candles.shift();
-    if(Date.now()-lastTick>350){lastTick=Date.now();calculate()}
-  };
+ if(ws)try{ws.close()}catch(e){}
+ if(reconnectTimer)clearTimeout(reconnectTimer);
+ ws=new WebSocket(WS);
+ ws.onopen=()=>{
+  setStatus(true,'Live • Coinbase');
+  ws.send(JSON.stringify({type:'subscribe',product_ids:[symbol],channel:'ticker'}));
+  ws.send(JSON.stringify({type:'subscribe',product_ids:[symbol],channel:'heartbeats'}));
+ };
+ ws.onmessage=e=>{
+  if(paused)return;
+  try{
+   const d=JSON.parse(e.data);
+   if(d.channel==='ticker'&&Array.isArray(d.events)){
+    d.events.forEach(ev=>(ev.tickers||[]).forEach(t=>{if(t.product_id===symbol&&t.price)livePrice=+t.price}));
+    if(Date.now()-lastDraw>250){lastDraw=Date.now();calculate()}
+   }
+  }catch(err){}
+ };
+ ws.onclose=()=>{setStatus(false,'Reconnecting…');if(!paused)reconnectTimer=setTimeout(connect,2500)};
+ ws.onerror=()=>{};
 }
-function returns(){
-  let r=[]; for(let i=1;i<candles.length;i++) r.push(Math.log(candles[i].c/candles[i-1].c)); return r;
-}
-function mean(a){return a.reduce((s,x)=>s+x,0)/(a.length||1)}
-function stdev(a){let m=mean(a);return Math.sqrt(mean(a.map(x=>(x-m)**2)))}
-function atr(n=14){
-  if(candles.length<n+1)return 0;
-  let tr=[]; for(let i=candles.length-n;i<candles.length;i++){
-    const c=candles[i], p=candles[i-1].c;
-    tr.push(Math.max(c.h-c.l,Math.abs(c.h-p),Math.abs(c.l-p)));
-  } return mean(tr);
-}
-function ema(n){
-  if(candles.length<n)return livePrice;
-  let e=mean(candles.slice(0,n).map(x=>x.c)), k=2/(n+1);
-  for(let i=n;i<candles.length;i++)e=candles[i].c*k+e*(1-k); return e;
-}
-function rsi(n=14){
-  if(candles.length<n+1)return 50;
-  let gains=0,loss=0;
-  for(let i=candles.length-n;i<candles.length;i++){let d=candles[i].c-candles[i-1].c;if(d>=0)gains+=d;else loss-=d}
-  if(loss===0)return 100; return 100-(100/(1+gains/loss));
-}
-function calcVol(window=96){
-  let r=returns().slice(-window); if(r.length<10)return 0;
-  return stdev(r)*Math.sqrt(1440/tfMin(timeframe)); // annual-like intraday percentage scale
-}
-function trendScore(){
-  const e9=ema(9),e21=ema(21),e50=ema(50),r=rsi(), rs=returns().slice(-12);
-  let s=0;
-  s+=clamp((e9/e21-1)*800,-1.5,1.5);
-  s+=clamp((e21/e50-1)*500,-1.5,1.5);
-  s+=clamp((r-50)/12,-2,2);
-  s+=clamp(mean(rs)*1000,-1.5,1.5);
-  return s;
-}
+
 function model(){
-  const price=livePrice, a=atr(), vol=calcVol(), score=trendScore();
-  const momentum=clamp(score/5,-1,1);
-  const upP=clamp(0.5+0.24*momentum,0.08,0.92);
-  const downP=1-upP;
-  const conf=clamp(Math.abs(upP-.5)*2*100 + Math.min(20,vol*100),5,98);
-  return {price,a,vol,score,upP,downP,conf};
+ let rs=returns().slice(-96), vol=sd(rs)*Math.sqrt(1440/tfMin()),a=atr();
+ let e9=ema(9),e21=ema(21),e50=ema(50),rr=rsi(), mom=mean(returns().slice(-12))*1000;
+ let score=clamp((e9/e21-1)*800,-1.5,1.5)+clamp((e21/e50-1)*500,-1.5,1.5)+clamp((rr-50)/12,-2,2)+clamp(mom,-1.5,1.5);
+ let up=clamp(.5+.24*clamp(score/5,-1,1),.08,.92);
+ return {p:livePrice,vol,a,score,up,down:1-up,e9,e21,e50,rr};
 }
-function levelData(m){
-  const p=m.price, basePct=Math.max(m.vol/Math.sqrt(1440),0.0015);
-  const levels=[
-    ['Min Long', .35],['Long Median', .80],['75% Long',1.35],['Long Outlier',2.75],
-    ['Min Short',-.35],['Short Median',-.80],['75% Short',-1.35],['Short Outlier',-2.75]
-  ];
-  return levels.map(([name,mult])=>{
-    const move=basePct*Math.abs(mult), target=p*(1+(mult>0?move:-move));
-    const speed=Math.max(m.a/p,basePct/Math.max(tfMin(timeframe),1));
-    const minutes=clamp((Math.abs(target-p)/Math.max(p*speed,1))*0.72,2,720);
-    const prob=clamp((mult>0?m.upP:m.downP)*(Math.exp(-Math.abs(mult)*0.18)),.04,.95);
-    return {name,target,move:target/p-1,minutes,prob};
-  });
+function eta(min){let d=new Date(Date.now()+min*60000),t=d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});return min<60?`${Math.round(min)}m • ~${t}`:`${Math.floor(min/60)}h ${Math.round(min%60)}m • ~${t}`}
+function levels(m){
+ let base=Math.max(m.vol/Math.sqrt(1440),.0015),arr=[];
+ [['Min Long',.35],['Long Median',.8],['75% Long',1.35],['Long Outlier',2.75],['Min Short',-.35],['Short Median',-.8],['75% Short',-1.35],['Short Outlier',-2.75]].forEach(([name,mult])=>{
+  let move=base*Math.abs(mult),target=m.p*(1+(mult>0?move:-move));
+  let speed=Math.max(m.a/m.p,base/Math.max(tfMin(),1)),mins=clamp(Math.abs(target-m.p)/Math.max(m.p*speed,1)*.72,2,720);
+  let prob=clamp((mult>0?m.up:m.down)*Math.exp(-Math.abs(mult)*.18),.04,.95);
+  arr.push({name,target,move:target/m.p-1,mins,prob});
+ });return arr;
 }
-function etaText(min){
-  const now=new Date(), then=new Date(now.getTime()+min*60000);
-  const t=then.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
-  if(min<60)return `${Math.round(min)} min • ~${t}`;
-  const h=Math.floor(min/60), mm=Math.round(min%60);
-  return `${h}h ${mm}m • ~${t}`;
-}
-function status(prob){return prob>=.65?'LIKELY':prob>=.45?'POSSIBLE':'LOW ODDS'}
-
 function calculate(){
-  if(!candles.length||!livePrice)return;
-  const m=model(), p=m.price;
-  $('price').textContent='$'+fmt(p,2);
-  $('vol').textContent=pct(m.vol);
-  $('atr').textContent='$'+fmt(m.a,2);
-  const dir=m.upP>=.55?'BULLISH':m.downP>=.55?'BEARISH':'NEUTRAL';
-  $('direction').textContent=dir;
-  $('direction').className='signal '+(dir==='BULLISH'?'green':dir==='BEARISH'?'red':'yellow');
-  $('score').textContent='Model score '+m.score.toFixed(2);
-  $('up').textContent=Math.round(m.upP*100)+'%'; $('down').textContent=Math.round(m.downP*100)+'%';
-  $('upbar').style.width=(m.upP*100)+'%'; $('downbar').style.width=(m.downP*100)+'%';
-  $('confidence').textContent=Math.round(m.conf)+'%';
-
-  const lv=levelData(m);
-  const bull=lv.filter(x=>x.move>0), bear=lv.filter(x=>x.move<0);
-  $('bull').textContent='$'+fmt(bull[1].target,2);
-  $('bullmeta').textContent=`Median • ${pct(bull[1].move)} • ${etaText(bull[1].minutes)} • ${Math.round(bull[1].prob*100)}%`;
-  $('bear').textContent='$'+fmt(bear[1].target,2);
-  $('bearmeta').textContent=`Median • ${pct(bear[1].move)} • ${etaText(bear[1].minutes)} • ${Math.round(bear[1].prob*100)}%`;
-
-  $('levels').innerHTML=lv.map(x=>`<tr>
-    <td>${x.name}</td><td>$${fmt(x.target,2)}</td><td class="${x.move>0?'green':'red'}">${pct(x.move)}</td>
-    <td>${etaText(x.minutes)}</td><td>${Math.round(x.prob*100)}%</td><td><span class="pill">${status(x.prob)}</span></td>
-  </tr>`).join('');
-
-  const hs=[15,30,60,120,240,360,720];
-  $('hours').innerHTML=hs.map(min=>{
-    const scale=Math.sqrt(min/Math.max(tfMin(timeframe),1));
-    const drift=clamp(m.score*.00035*min, -.04,.04);
-    const sigma=Math.max(m.vol/Math.sqrt(1440),.002)*scale;
-    const median=p*(1+drift), lo=p*(1+drift-sigma), hi=p*(1+drift+sigma);
-    const up=clamp(.5+(m.upP-.5)/Math.sqrt(scale),.08,.92);
-    const d=up>=.55?'UP':up<=.45?'DOWN':'NEUTRAL';
-    return `<tr><td>${min<60?min+'m':(min/60)+'h'}</td><td class="${d==='UP'?'green':d==='DOWN'?'red':'yellow'}">${d}</td>
-    <td>${Math.round(Math.max(up,1-up)*100)}%</td><td>$${fmt(lo,0)} – $${fmt(hi,0)}</td><td>$${fmt(median,0)}</td><td>${etaText(min)}</td></tr>`;
-  }).join('');
-
-  $('inputs').textContent=`EMA9 $${fmt(ema(9),2)} • EMA21 $${fmt(ema(21),2)} • EMA50 $${fmt(ema(50),2)} • RSI ${rsi().toFixed(1)} • ATR $${fmt(m.a,2)} • Vol ${pct(m.vol)} • ${candles.length} candles`;
-  drawChart(lv,m);
+ if(!candles.length||!livePrice)return;
+ let m=model(),p=m.p,lv=levels(m),bull=lv.filter(x=>x.move>0),bear=lv.filter(x=>x.move<0);
+ $('price').textContent='$'+fmt(p);$('vol').textContent=pct(m.vol);$('atr').textContent='$'+fmt(m.a);
+ let dir=m.up>=.55?'BULLISH':m.down>=.55?'BEARISH':'NEUTRAL';
+ $('direction').textContent=dir;$('direction').className='signal '+(dir==='BULLISH'?'green':dir==='BEARISH'?'red':'yellow');
+ $('score').textContent='Model score '+m.score.toFixed(2);
+ $('up').textContent=Math.round(m.up*100)+'%';$('down').textContent=Math.round(m.down*100)+'%';
+ $('upbar').style.width=m.up*100+'%';$('downbar').style.width=m.down*100+'%';
+ $('confidence').textContent=Math.round(clamp(Math.abs(m.up-.5)*200+Math.min(20,m.vol*100),5,98))+'%';
+ $('bull').textContent='$'+fmt(bull[1].target);$('bullmeta').textContent=`Median • ${pct(bull[1].move)} • ${eta(bull[1].mins)} • ${Math.round(bull[1].prob*100)}%`;
+ $('bear').textContent='$'+fmt(bear[1].target);$('bearmeta').textContent=`Median • ${pct(bear[1].move)} • ${eta(bear[1].mins)} • ${Math.round(bear[1].prob*100)}%`;
+ $('levels').innerHTML=lv.map(x=>`<tr><td>${x.name}</td><td>$${fmt(x.target)}</td><td class="${x.move>0?'green':'red'}">${pct(x.move)}</td><td>${eta(x.mins)}</td><td>${Math.round(x.prob*100)}%</td><td><span class="pill">${x.prob>=.65?'LIKELY':x.prob>=.45?'POSSIBLE':'LOW ODDS'}</span></td></tr>`).join('');
+ const hs=[15,30,60,120,240,360,720];
+ $('hours').innerHTML=hs.map(min=>{
+  let scale=Math.sqrt(min/Math.max(tfMin(),1)),drift=clamp(m.score*.00035*min,-.04,.04),sigma=Math.max(m.vol/Math.sqrt(1440),.002)*scale;
+  let med=p*(1+drift),lo=p*(1+drift-sigma),hi=p*(1+drift+sigma),up=clamp(.5+(m.up-.5)/Math.sqrt(scale),.08,.92),d=up>=.55?'UP':up<=.45?'DOWN':'NEUTRAL';
+  return `<tr><td>${min<60?min+'m':min/60+'h'}</td><td class="${d==='UP'?'green':d==='DOWN'?'red':'yellow'}">${d}</td><td>${Math.round(Math.max(up,1-up)*100)}%</td><td>$${fmt(lo,0)} – $${fmt(hi,0)}</td><td>$${fmt(med,0)}</td><td>${eta(min)}</td></tr>`;
+ }).join('');
+ $('inputs').textContent=`EMA9 $${fmt(m.e9)} • EMA21 $${fmt(m.e21)} • EMA50 $${fmt(m.e50)} • RSI ${m.rr.toFixed(1)} • ATR $${fmt(m.a)} • Vol ${pct(m.vol)} • ${candles.length} candles • Source Coinbase`;
+ draw(lv,m);
 }
-function drawChart(lv,m){
-  const c=$('chart'),ctx=c.getContext('2d'),dpr=devicePixelRatio||1;
-  const w=c.clientWidth,h=c.clientHeight;c.width=w*dpr;c.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,w,h);ctx.font='11px Arial';
-  const vals=[m.price,...lv.map(x=>x.target)], min=Math.min(...vals),max=Math.max(...vals), pad=(max-min)*.12||1;
-  const lo=min-pad,hi=max+pad, y=v=>h-25-(v-lo)/(hi-lo)*(h-45);
-  ctx.strokeStyle='#263241';ctx.lineWidth=1;
-  for(let i=0;i<6;i++){let yy=20+i*(h-45)/5;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke()}
-  ctx.fillStyle='#8d9aaa';ctx.fillText('Forward projection — live',10,14);
-  ctx.setLineDash([5,4]);ctx.strokeStyle='#55c7ff';ctx.beginPath();ctx.moveTo(0,y(m.price));ctx.lineTo(w,y(m.price));ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle='#55c7ff';ctx.fillText('CURRENT $'+fmt(m.price,0),10,y(m.price)-6);
-  lv.forEach((x,i)=>{let yy=y(x.target), right=x.move>0;ctx.strokeStyle=x.move>0?'#39d98a':'#ff5d6c';ctx.beginPath();ctx.moveTo(80,yy);ctx.lineTo(w-10,yy);ctx.stroke();ctx.fillStyle=ctx.strokeStyle;ctx.fillText(x.name+'  $'+fmt(x.target,0)+'  '+Math.round(x.prob*100)+'%',85,yy-4)});
+function draw(lv,m){
+ const c=$('chart'),ctx=c.getContext('2d'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;ctx.setTransform(d,0,0,d,0,0);
+ ctx.clearRect(0,0,w,h);let vals=[m.p,...lv.map(x=>x.target)],mn=Math.min(...vals),mx=Math.max(...vals),pad=(mx-mn)*.12||1,lo=mn-pad,hi=mx+pad,y=v=>h-25-(v-lo)/(hi-lo)*(h-45);
+ ctx.font='11px Arial';ctx.strokeStyle='#263241';for(let i=0;i<6;i++){let yy=20+i*(h-45)/5;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke()}
+ ctx.setLineDash([5,4]);ctx.strokeStyle='#55c7ff';ctx.beginPath();ctx.moveTo(0,y(m.p));ctx.lineTo(w,y(m.p));ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle='#55c7ff';ctx.fillText('CURRENT $'+fmt(m.p,0),10,y(m.p)-6);
+ lv.forEach(x=>{let yy=y(x.target);ctx.strokeStyle=x.move>0?'#39d98a':'#ff5d6c';ctx.beginPath();ctx.moveTo(80,yy);ctx.lineTo(w-10,yy);ctx.stroke();ctx.fillStyle=ctx.strokeStyle;ctx.fillText(x.name+'  $'+fmt(x.target,0)+'  '+Math.round(x.prob*100)+'%',85,yy-4)});
 }
-$('refresh').onclick=load;
-$('symbol').onchange=load;$('tf').onchange=load;
+$('refresh').onclick=load;$('symbol').onchange=load;$('tf').onchange=load;
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)load()};
 window.addEventListener('resize',()=>candles.length&&calculate());
 load();
