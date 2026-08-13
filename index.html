@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JB BTC Edge V5</title>
+<style>
+:root{--bg:#0b0f14;--p:#111820;--p2:#151e28;--t:#e9eef5;--m:#8d9aaa;--l:#263241;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
+header{padding:16px;border-bottom:1px solid var(--l);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{margin:0;font-size:20px}.sub{color:var(--m);font-size:12px;margin-top:4px}.status{display:flex;gap:8px;align-items:center}.dot{width:9px;height:9px;border-radius:50%;background:var(--r)}.dot.on{background:var(--g)}
+main{max-width:1500px;margin:auto;padding:14px}.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+button,select{background:var(--p2);color:var(--t);border:1px solid var(--l);border-radius:7px;padding:9px 10px}button{cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.card{background:var(--p);border:1px solid var(--l);border-radius:10px;padding:12px}
+.label{color:var(--m);font-size:11px;text-transform:uppercase;letter-spacing:.5px}.big{font-size:25px;font-weight:700;margin-top:6px}
+.green{color:var(--g)}.red{color:var(--r)}.yellow{color:var(--y)}.cyan{color:var(--c)}.signal{font-size:18px;font-weight:700}
+.section{margin-top:13px}.section h2{font-size:14px;margin:0 0 8px}.projection{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+table{width:100%;border-collapse:collapse;background:var(--p);border:1px solid var(--l);border-radius:10px;overflow:hidden}
+th,td{padding:9px 8px;border-bottom:1px solid var(--l);text-align:left;font-size:12px}th{background:var(--p2);color:var(--m)}
+tr:last-child td{border:0}.bar{height:7px;background:#202a35;border-radius:10px;overflow:hidden}.fill{height:100%;background:var(--g)}
+.pill{display:inline-block;padding:4px 7px;border-radius:99px;background:var(--p2);font-size:11px}.note{color:var(--m);font-size:11px;line-height:1.5}
+#chart{width:100%;height:300px;background:var(--p);border:1px solid var(--l);border-radius:10px}
+#error{display:none;margin-top:10px;padding:10px;border:1px solid #59323a;background:#1b1115;border-radius:8px;color:#ff9aa4;font-size:12px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.projection{grid-template-columns:1fr}}
+@media(max-width:560px){.grid{grid-template-columns:1fr}th:nth-child(5),td:nth-child(5){display:none}}
+</style>
+</head>
+<body>
+<header>
+<div><h1>JB BTC Edge V5</h1><div class="sub">GitHub Pages live-data build • Kraken public market data • volatility • multi-hour forecasts • dynamic ETA</div></div>
+<div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
+</header>
+<main>
+<div class="controls">
+<select id="symbol"><option value="BTC-USD">BTC / USD</option><option value="ETH-USD">ETH / USD</option></select>
+<select id="tf"><option value="ONE_MINUTE">1m</option><option value="FIVE_MINUTE" selected>5m</option><option value="FIFTEEN_MINUTE">15m</option><option value="ONE_HOUR">1h</option></select>
+<button id="refresh">Refresh data</button><button id="pause">Pause live</button>
+<span class="pill" id="kalshiStatus">Kalshi: connecting…</span>
+</div>
+<div id="error"></div>
+
+<div class="grid">
+<div class="card"><div class="label">Live Price</div><div id="price" class="big">—</div></div>
+<div class="card"><div class="label">24h Change</div><div id="change" class="big">—</div></div>
+<div class="card"><div class="label">Realized Volatility</div><div id="vol" class="big">—</div></div>
+<div class="card"><div class="label">ATR</div><div id="atr" class="big">—</div></div>
+</div>
+
+<div class="section">
+<h2>Kalshi BTC Edge</h2>
+<div class="grid">
+  <div class="card"><div class="label">Kalshi Market Price</div><div id="kprice" class="big">—</div><div class="sub" id="kpriceSub">Automatic Kalshi market feed</div></div>
+  <div class="card"><div class="label">Model Probability</div><div id="kmodel" class="big cyan">—</div><div id="kmodelSub" class="sub">—</div></div>
+  <div class="card"><div class="label">Model Edge</div><div id="kedge" class="big">—</div><div id="ksignal" class="sub">—</div></div>
+  <div class="card"><div class="label">Contract Fit</div><div id="kfit" class="big yellow">—</div><div id="kfitSub" class="sub">—</div></div>
+</div>
+<div class="card" style="margin-top:10px">
+  <div class="label">Kalshi Decision</div>
+  <div id="kdecision" class="signal">WAITING FOR MARKET DATA</div>
+  <div id="kdecisionSub" class="sub">The tool compares your Kalshi price with the model probability and checks whether the projected move can occur before expiration.</div>
+</div>
+</div>
+
+<div class="section"><h2>Live Prediction</h2><div class="grid">
+<div class="card"><div class="label">Direction</div><div id="direction" class="signal">—</div><div id="score" class="sub">Score —</div></div>
+<div class="card"><div class="label">UP Probability</div><div id="up" class="big green">—</div><div class="bar"><div id="upbar" class="fill" style="width:0%"></div></div></div>
+<div class="card"><div class="label">DOWN Probability</div><div id="down" class="big red">—</div><div class="bar"><div id="downbar" class="fill" style="width:0%;background:var(--r)"></div></div></div>
+<div class="card"><div class="label">Confidence</div><div id="confidence" class="big yellow">—</div></div>
+</div></div>
+
+<div class="section"><h2>Kalshi-Style Forward Projection</h2><div class="projection">
+<div class="card"><div class="label">Bullish Projection</div><div id="bull" class="big green">—</div><div id="bullmeta" class="sub">—</div></div>
+<div class="card"><div class="label">Bearish Projection</div><div id="bear" class="big red">—</div><div id="bearmeta" class="sub">—</div></div>
+</div></div>
+
+<div class="section"><h2>Kalshi-Style Target Ladder</h2>
+<table>
+<thead><tr><th>Target</th><th>Model Chance</th><th>ETA</th><th>Before Expiry?</th><th>Signal</th></tr></thead>
+<tbody id="ktargets"></tbody>
+</table>
+</div>
+
+<div class="section"><h2>Estimated Time to Each Level</h2><table><thead><tr><th>Level</th><th>Target</th><th>Move</th><th>ETA</th><th>Probability</th><th>Status</th></tr></thead><tbody id="levels"></tbody></table></div>
+
+<div class="section"><h2>Multi-Hour Prediction</h2><table><thead><tr><th>Horizon</th><th>Direction</th><th>Probability</th><th>Expected Range</th><th>Median Target</th><th>ETA</th></tr></thead><tbody id="hours"></tbody></table></div>
+
+<div class="section">
+<h2>Live BTC Chart • Kalshi Mode</h2>
+<div class="card">
+  <div class="sub" id="chartStatus">Live price • updating from Kraken WebSocket</div>
+  <canvas id="liveChart" style="width:100%;height:340px;display:block"></canvas>
+</div>
+</div>
+
+<div class="section"><h2>Price / Volatility Map</h2><canvas id="chart"></canvas></div>
+
+<div class="section"><div class="card"><div class="label">Model Inputs</div><div id="inputs" class="note">Waiting for candles…</div>
+<p class="note">Kalshi Mode automatically reads the current public KXBTC15M market data. It does not directly access the proprietary CF Benchmarks BRTI feed, so the displayed Kraken price is not presented as the official Kalshi settlement price. Probabilities and ETAs are estimates, not guarantees.</p></div></div>
+</main>
+
+<script>
+const CB='https://api.kraken.com/0/public';
+const WS='wss://ws.kraken.com/v2';
+let symbol='BTC-USD',tf='FIVE_MINUTE',candles=[],livePrice=0,ws=null,paused=false,lastDraw=0,reconnectTimer=null;
+
+const $=x=>document.getElementById(x);
+function fmt(n,d=2){return Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d})}
+function pct(x,d=2){return (x*100).toFixed(d)+'%'}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function tfMin(){return ({ONE_MINUTE:1,FIVE_MINUTE:5,FIFTEEN_MINUTE:15,ONE_HOUR:60}[tf]||5)}
+function mean(a){return a.length?a.reduce((s,x)=>s+x,0)/a.length:0}
+function sd(a){let m=mean(a);return a.length?Math.sqrt(mean(a.map(x=>(x-m)**2))):0}
+function returns(){let r=[];for(let i=1;i<candles.length;i++)r.push(Math.log(candles[i].c/candles[i-1].c));return r}
+function ema(n){if(candles.length<n)return livePrice;let e=mean(candles.slice(0,n).map(x=>x.c)),k=2/(n+1);for(let i=n;i<candles.length;i++)e=candles[i].c*k+e*(1-k);return e}
+function rsi(n=14){if(candles.length<n+1)return 50;let g=0,l=0;for(let i=candles.length-n;i<candles.length;i++){let d=candles[i].c-candles[i-1].c;if(d>=0)g+=d;else l-=d}return l?100-100/(1+g/l):100}
+function atr(n=14){if(candles.length<n+1)return 0;let tr=[];for(let i=candles.length-n;i<candles.length;i++){let c=candles[i],p=candles[i-1].c;tr.push(Math.max(c.h-c.l,Math.abs(c.h-p),Math.abs(c.l-p)))}return mean(tr)}
+function setStatus(ok,text){$('dot').className='dot'+(ok?' on':'');$('conn').textContent=text}
+function showError(msg){$('error').style.display='block';$('error').textContent=msg}
+function clearError(){$('error').style.display='none'}
+
+async function getJson(url){
+ const r=await fetch(url,{cache:'no-store'});if(!r.ok){let txt='';try{txt=await r.text()}catch(e){}throw new Error('HTTP '+r.status+(txt?' — '+txt:''));}return r.json();
+}
+async function load(){
+ clearError();symbol=$('symbol').value;tf=$('tf').value;
+ try{
+  const pair='XBTUSD';
+  const interval=({ONE_MINUTE:1,FIVE_MINUTE:5,FIFTEEN_MINUTE:15,ONE_HOUR:60}[tf]||5);
+  const raw=await getJson(`${CB}/OHLC?pair=${pair}&interval=${interval}`);
+  if(raw.error&&raw.error.length)throw new Error(raw.error.join(', '));
+  const key=Object.keys(raw.result||{}).find(k=>k!=='last');
+  const rows=key?raw.result[key]:null;
+  if(!Array.isArray(rows)||!rows.length)throw new Error('No Kraken candle data returned');
+  candles=rows.map(x=>({t:+x[0]*1000,o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[6]})).sort((a,b)=>a.t-b.t);
+  const tick=await getJson(`${CB}/Ticker?pair=${pair}`);
+  if(tick.error&&tick.error.length)throw new Error(tick.error.join(', '));
+  const tk=tick.result[Object.keys(tick.result)[0]];
+  livePrice=+tk.c[0];
+  const open=+tk.o;
+  $('change').textContent=((livePrice/open-1)*100).toFixed(2)+'%';
+  $('change').className='big '+(livePrice>=open?'green':'red');
+  clearError();calculate();connect();
+ }catch(e){
+  setStatus(false,'Data error');showError('Kraken market data could not be loaded: '+e.message+'. Retrying automatically…');
+  setTimeout(()=>{if(!paused)load()},5000);
+ }
+}
+function connect(){
+ if(ws)try{ws.close()}catch(e){}
+ if(reconnectTimer)clearTimeout(reconnectTimer);
+ ws=new WebSocket(WS);
+ ws.onopen=()=>{
+  setStatus(true,'Live • Kraken');
+  ws.send(JSON.stringify({
+   method:'subscribe',
+   params:{channel:'ticker',symbol:['BTC/USD'],event_trigger:'bbo',snapshot:true}
+  }));
+ };
+ ws.onmessage=e=>{
+  if(paused)return;
+  try{
+   const d=JSON.parse(e.data);
+   if(d.channel==='ticker'&&Array.isArray(d.data)){
+    d.data.forEach(t=>{
+      if(t.symbol==='BTC/USD'){
+        const px=t.last||t.last_price;
+        if(px)livePrice=+px;
+      }
+    });
+    if(Date.now()-lastDraw>250){lastDraw=Date.now();calculate()}
+   }
+  }catch(err){}
+ };
+ ws.onclose=()=>{setStatus(false,'Reconnecting…');if(!paused)reconnectTimer=setTimeout(connect,2500)};
+ ws.onerror=()=>{setStatus(false,'Live feed error')};
+}
+function model(){
+ let rs=returns().slice(-96), vol=sd(rs)*Math.sqrt(1440/tfMin()),a=atr();
+ let e9=ema(9),e21=ema(21),e50=ema(50),rr=rsi(), mom=mean(returns().slice(-12))*1000;
+ let score=clamp((e9/e21-1)*800,-1.5,1.5)+clamp((e21/e50-1)*500,-1.5,1.5)+clamp((rr-50)/12,-2,2)+clamp(mom,-1.5,1.5);
+ let up=clamp(.5+.24*clamp(score/5,-1,1),.08,.92);
+ return {p:livePrice,vol,a,score,up,down:1-up,e9,e21,e50,rr};
+}
+function eta(min){let d=new Date(Date.now()+min*60000),t=d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});return min<60?`${Math.round(min)}m • ~${t}`:`${Math.floor(min/60)}h ${Math.round(min%60)}m • ~${t}`}
+function levels(m){
+ let base=Math.max(m.vol/Math.sqrt(1440),.0015),arr=[];
+ [['Min Long',.35],['Long Median',.8],['75% Long',1.35],['Long Outlier',2.75],['Min Short',-.35],['Short Median',-.8],['75% Short',-1.35],['Short Outlier',-2.75]].forEach(([name,mult])=>{
+  let move=base*Math.abs(mult),target=m.p*(1+(mult>0?move:-move));
+  let speed=Math.max(m.a/m.p,base/Math.max(tfMin(),1)),mins=clamp(Math.abs(target-m.p)/Math.max(m.p*speed,1)*.72,2,720);
+  let prob=clamp((mult>0?m.up:m.down)*Math.exp(-Math.abs(mult)*.18),.04,.95);
+  arr.push({name,target,move:target/m.p-1,mins,prob});
+ });return arr;
+}
+
+
+let kalshi = {
+  ticker:null, yes:0.5, no:0.5, closeTime:null, title:'', strike:null, status:'loading'
+};
+
+async function loadKalshiMarket(){
+  try{
+    const url='https://external-api.kalshi.com/trade-api/v2/markets?series_ticker=KXBTC15M&status=open&limit=100';
+    const raw=await getJson(url);
+    const markets=Array.isArray(raw.markets)?raw.markets:[];
+    const now=Date.now();
+    const active=markets
+      .map(m=>({...m,_close:Date.parse(m.close_time||m.expiration_time||'')||0}))
+      .filter(m=>m._close>now && (m.status==='open'||m.status==='active'||!m.status))
+      .sort((a,b)=>a._close-b._close);
+
+    if(!active.length) throw new Error('No open KXBTC15M market found');
+
+    const m=active[0];
+    kalshi.ticker=m.ticker;
+    kalshi.title=m.title||m.subtitle||'BTC 15-minute Up/Down';
+    kalshi.closeTime=m._close;
+    kalshi.strike=m.floor_strike||m.strike||m.floor_strike_dollars||null;
+
+    // Kalshi public market data exposes bid/ask/last fields in current API
+    // versions. Prefer the midpoint of yes bid/ask, then last, then yes bid.
+    const yb=Number(m.yes_bid_dollars??(m.yes_bid!=null?m.yes_bid/100:NaN));
+    const ya=Number(m.yes_ask_dollars??(m.yes_ask!=null?m.yes_ask/100:NaN));
+    const yl=Number(m.last_price_dollars??(m.last_price!=null?m.last_price/100:NaN));
+    const y=Number.isFinite(yb)&&Number.isFinite(ya)?(yb+ya)/2:
+            Number.isFinite(yl)?yl:
+            Number.isFinite(yb)?yb:0.5;
+    kalshi.yes=clamp(y,0.01,0.99);
+    kalshi.no=1-kalshi.yes;
+    kalshi.status='live';
+
+    $('kalshiStatus').textContent=`Kalshi: LIVE • ${Math.max(0,Math.ceil((kalshi.closeTime-now)/60000))}m left`;
+    $('kpriceSub').textContent=`${kalshi.ticker} • ${kalshi.title}`;
+    calculate();
+  }catch(e){
+    kalshi.status='error';
+    $('kalshiStatus').textContent='Kalshi: unavailable';
+    $('kpriceSub').textContent='Automatic feed unavailable — prediction engine still running';
+  }
+}
+
+function kalshiPanel(m,lv){
+ const kp=kalshi.yes;
+ const mins=kalshi.closeTime ? Math.max(0,(kalshi.closeTime-Date.now())/60000) : 15;
+ const modelUp=m.up;
+ const edge=modelUp-kp;
+ $('kprice').textContent=Math.round(kp*100)+'¢';
+ $('kmodel').textContent=Math.round(modelUp*100)+'%';
+ $('kmodelSub').textContent=`DOWN model: ${Math.round((1-modelUp)*100)}%`;
+ $('kedge').textContent=(edge>=0?'+':'')+Math.round(edge*100)+' pts';
+ $('kedge').className='big '+(edge>=.05?'green':edge<=-.05?'red':'yellow');
+
+ const median=lv.find(x=>x.name==='Long Median');
+ const targetHit=median ? median.mins<=mins : false;
+ $('kfit').textContent=targetHit?'GOOD FIT':'TIME RISK';
+ $('kfit').className='big '+(targetHit?'green':'yellow');
+ $('kfitSub').textContent=`${Math.max(0,Math.round(mins))} min remaining • median ETA ${median?Math.round(median.mins):'—'} min`;
+
+ let decision='NO TRADE', sub='Edge is too small or timing does not fit.';
+ if(edge>=.08 && targetHit){decision='🟢 UP EDGE';sub=`Model ${Math.round(modelUp*100)}% vs Kalshi ${Math.round(kp*100)}% • ${Math.round(edge*100)} point edge.`}
+ else if(edge<=-.08){decision='🔴 DOWN / AVOID UP';sub=`Model favors DOWN versus the current Kalshi UP price.`}
+ else if(Math.abs(edge)<.05){decision='🟡 NO CLEAR EDGE';sub='Model and market are too close.'}
+ $('kdecision').textContent=decision;
+ $('kdecision').className='signal '+(decision.includes('UP')?'green':decision.includes('DOWN')?'red':'yellow');
+ $('kdecisionSub').textContent=sub;
+
+ const targets=lv.filter(x=>x.move>0).slice(0,4);
+ $('ktargets').innerHTML=targets.map(x=>{
+   const ok=x.mins<=mins;
+   const edge2=x.prob-kp;
+   return `<tr><td>$${fmt(x.target,0)}</td><td>${Math.round(x.prob*100)}%</td><td>${eta(x.mins)}</td><td class="${ok?'green':'yellow'}">${ok?'YES':'NO'}</td><td class="${edge2>=.05?'green':edge2<=-.05?'red':'yellow'}">${edge2>=.05?'EDGE':edge2<=-.05?'WEAK':'FAIR'}</td></tr>`;
+ }).join('');
+}
+
+function calculate(){
+ if(!candles.length||!livePrice)return;
+ let m=model(),p=m.p,lv=levels(m),bull=lv.filter(x=>x.move>0),bear=lv.filter(x=>x.move<0);
+ kalshiPanel(m,lv);
+ $('price').textContent='$'+fmt(p);$('vol').textContent=pct(m.vol);$('atr').textContent='$'+fmt(m.a);
+ let dir=m.up>=.55?'BULLISH':m.down>=.55?'BEARISH':'NEUTRAL';
+ $('direction').textContent=dir;$('direction').className='signal '+(dir==='BULLISH'?'green':dir==='BEARISH'?'red':'yellow');
+ $('score').textContent='Model score '+m.score.toFixed(2);
+ $('up').textContent=Math.round(m.up*100)+'%';$('down').textContent=Math.round(m.down*100)+'%';
+ $('upbar').style.width=m.up*100+'%';$('downbar').style.width=m.down*100+'%';
+ $('confidence').textContent=Math.round(clamp(Math.abs(m.up-.5)*200+Math.min(20,m.vol*100),5,98))+'%';
+ $('bull').textContent='$'+fmt(bull[1].target);$('bullmeta').textContent=`Median • ${pct(bull[1].move)} • ${eta(bull[1].mins)} • ${Math.round(bull[1].prob*100)}%`;
+ $('bear').textContent='$'+fmt(bear[1].target);$('bearmeta').textContent=`Median • ${pct(bear[1].move)} • ${eta(bear[1].mins)} • ${Math.round(bear[1].prob*100)}%`;
+ $('levels').innerHTML=lv.map(x=>`<tr><td>${x.name}</td><td>$${fmt(x.target)}</td><td class="${x.move>0?'green':'red'}">${pct(x.move)}</td><td>${eta(x.mins)}</td><td>${Math.round(x.prob*100)}%</td><td><span class="pill">${x.prob>=.65?'LIKELY':x.prob>=.45?'POSSIBLE':'LOW ODDS'}</span></td></tr>`).join('');
+ const hs=[15,30,60,120,240,360,720];
+ $('hours').innerHTML=hs.map(min=>{
+  let scale=Math.sqrt(min/Math.max(tfMin(),1)),drift=clamp(m.score*.00035*min,-.04,.04),sigma=Math.max(m.vol/Math.sqrt(1440),.002)*scale;
+  let med=p*(1+drift),lo=p*(1+drift-sigma),hi=p*(1+drift+sigma),up=clamp(.5+(m.up-.5)/Math.sqrt(scale),.08,.92),d=up>=.55?'UP':up<=.45?'DOWN':'NEUTRAL';
+  return `<tr><td>${min<60?min+'m':min/60+'h'}</td><td class="${d==='UP'?'green':d==='DOWN'?'red':'yellow'}">${d}</td><td>${Math.round(Math.max(up,1-up)*100)}%</td><td>$${fmt(lo,0)} – $${fmt(hi,0)}</td><td>$${fmt(med,0)}</td><td>${eta(min)}</td></tr>`;
+ }).join('');
+ $('inputs').textContent=`EMA9 $${fmt(m.e9)} • EMA21 $${fmt(m.e21)} • EMA50 $${fmt(m.e50)} • RSI ${m.rr.toFixed(1)} • ATR $${fmt(m.a)} • Vol ${pct(m.vol)} • ${candles.length} candles • Source Kraken • Kalshi price entered manually`;
+ draw(lv,m);
+ drawLiveChart();
+}
+function drawLiveChart(){
+ const c=$('liveChart'); if(!c||!candles.length||!livePrice)return;
+ const ctx=c.getContext('2d'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+ c.width=w*d;c.height=h*d;ctx.setTransform(d,0,0,d,0,0);
+ ctx.clearRect(0,0,w,h);
+
+ // Use the latest 100 candles and keep the currently forming candle synced
+ // to the live WebSocket price.
+ const data=candles.slice(-100).map(x=>({...x}));
+ if(data.length){
+   const last=data[data.length-1];
+   last.c=livePrice;
+   last.h=Math.max(last.h,livePrice);
+   last.l=Math.min(last.l,livePrice);
+ }
+ const prices=data.flatMap(x=>[x.h,x.l,x.c]);
+ let mn=Math.min(...prices),mx=Math.max(...prices),pad=(mx-mn)*.08||1;
+ mn-=pad;mx+=pad;
+ const left=58,right=12,top=22,bottom=28;
+ const plotW=Math.max(1,w-left-right),plotH=Math.max(1,h-top-bottom);
+ const x=i=>left+(i/Math.max(1,data.length-1))*plotW;
+ const y=v=>top+(mx-v)/(mx-mn)*plotH;
+
+ ctx.font='11px Arial';
+ ctx.strokeStyle='#263241';ctx.lineWidth=1;
+ for(let i=0;i<6;i++){
+   const yy=top+i*plotH/5;
+   ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(w-right,yy);ctx.stroke();
+   const val=mx-(mx-mn)*i/5;
+   ctx.fillStyle='#8d9aaa';ctx.fillText('$'+fmt(val,0),5,yy+4);
+ }
+
+ // Candle width adapts to the screen.
+ const cw=Math.max(2,Math.min(9,(plotW/Math.max(1,data.length))*0.68));
+ data.forEach((k,i)=>{
+   const xx=x(i), yo=y(k.o), yc=y(k.c), yh=y(k.h), yl=y(k.l);
+   const up=k.c>=k.o;
+   ctx.strokeStyle=up?'#39d98a':'#ff5d6c';
+   ctx.fillStyle=ctx.strokeStyle;
+   ctx.beginPath();ctx.moveTo(xx,yh);ctx.lineTo(xx,yl);ctx.stroke();
+   const topBody=Math.min(yo,yc),bodyH=Math.max(1,Math.abs(yc-yo));
+   ctx.fillRect(xx-cw/2,topBody,cw,bodyH);
+ });
+
+ // Live price line.
+ const yp=y(livePrice);
+ ctx.setLineDash([5,4]);ctx.strokeStyle='#55c7ff';ctx.lineWidth=1;
+ ctx.beginPath();ctx.moveTo(left,yp);ctx.lineTo(w-right,yp);ctx.stroke();
+ ctx.setLineDash([]);
+ ctx.fillStyle='#55c7ff';ctx.font='bold 12px Arial';
+ ctx.fillText('LIVE $'+fmt(livePrice,2),left+6,Math.max(14,yp-7));
+
+ // Time labels.
+ ctx.font='10px Arial';ctx.fillStyle='#8d9aaa';
+ const labels=4;
+ for(let j=0;j<labels;j++){
+   const i=Math.round(j*(data.length-1)/(labels-1));
+   if(data[i]){
+     const dt=new Date(data[i].t);
+     ctx.fillText(dt.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),x(i)-20,h-8);
+   }
+ }
+ $('chartStatus').textContent='Live price • '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})+' • '+data.length+' candles';
+}
+
+function draw(lv,m){
+ const c=$('chart'),ctx=c.getContext('2d'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;ctx.setTransform(d,0,0,d,0,0);
+ ctx.clearRect(0,0,w,h);let vals=[m.p,...lv.map(x=>x.target)],mn=Math.min(...vals),mx=Math.max(...vals),pad=(mx-mn)*.12||1,lo=mn-pad,hi=mx+pad,y=v=>h-25-(v-lo)/(hi-lo)*(h-45);
+ ctx.font='11px Arial';ctx.strokeStyle='#263241';for(let i=0;i<6;i++){let yy=20+i*(h-45)/5;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke()}
+ ctx.setLineDash([5,4]);ctx.strokeStyle='#55c7ff';ctx.beginPath();ctx.moveTo(0,y(m.p));ctx.lineTo(w,y(m.p));ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle='#55c7ff';ctx.fillText('CURRENT $'+fmt(m.p,0),10,y(m.p)-6);
+ lv.forEach(x=>{let yy=y(x.target);ctx.strokeStyle=x.move>0?'#39d98a':'#ff5d6c';ctx.beginPath();ctx.moveTo(80,yy);ctx.lineTo(w-10,yy);ctx.stroke();ctx.fillStyle=ctx.strokeStyle;ctx.fillText(x.name+'  $'+fmt(x.target,0)+'  '+Math.round(x.prob*100)+'%',85,yy-4)});
+}
+$('refresh').onclick=()=>{load();loadKalshiMarket()};
+$('symbol').onchange=load;$('tf').onchange=load;
+setInterval(loadKalshiMarket,2000);
+$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)load()};
+window.addEventListener('resize',()=>candles.length&&calculate());
+load();
+loadKalshiMarket();
+</script>
+</body>
+</html>
