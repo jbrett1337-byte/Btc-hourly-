@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JB BTC Prediction Engine V4.3</title>
+<title>JB BTC Prediction Engine V4.4</title>
 <style>
 :root{--bg:#0b0f14;--p:#111820;--p2:#151e28;--t:#e9eef5;--m:#8d9aaa;--l:#263241;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
@@ -27,7 +27,7 @@ tr:last-child td{border:0}.bar{height:7px;background:#202a35;border-radius:10px;
 </head>
 <body>
 <header>
-<div><h1>JB BTC Prediction Engine V4.3</h1><div class="sub">GitHub Pages live-data build • volatility • multi-hour forecasts • dynamic ETA</div></div>
+<div><h1>JB BTC Prediction Engine V4.4</h1><div class="sub">GitHub Pages live-data build • Kraken public market data • volatility • multi-hour forecasts • dynamic ETA</div></div>
 <div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
 </header>
 <main>
@@ -68,8 +68,8 @@ tr:last-child td{border:0}.bar{height:7px;background:#202a35;border-radius:10px;
 </main>
 
 <script>
-const CB='https://api.coinbase.com/api/v3/brokerage/market';
-const WS='wss://advanced-trade-ws.coinbase.com';
+const CB='https://api.kraken.com/0/public';
+const WS='wss://ws.kraken.com/v2';
 let symbol='BTC-USD',tf='FIVE_MINUTE',candles=[],livePrice=0,ws=null,paused=false,lastDraw=0,reconnectTimer=null;
 
 const $=x=>document.getElementById(x);
@@ -93,48 +93,56 @@ async function getJson(url){
 async function load(){
  clearError();symbol=$('symbol').value;tf=$('tf').value;
  try{
-  // Coinbase candles max 300 points per request; this is enough for the model.
-  const end=Math.floor(Date.now()/1000), start=end-290*tfMin()*60;
-  const url=`${CB}/products/${symbol}/candles?granularity=${tf}&start=${start}&end=${end}&limit=290`;
-  const raw=await getJson(url);
-  const data=raw.candles||[];
-  if(!Array.isArray(data)||!data.length)throw new Error('No candle data returned');
-  candles=data.map(x=>({t:+x.start*1000,l:+x.low,h:+x.high,o:+x.open,c:+x.close,v:+x.volume})).sort((a,b)=>a.t-b.t);
-  const product=await getJson(`${CB}/products/${symbol}`);
-  livePrice=+product.price;
-  const change=String(product.price_percentage_change_24h||'0').replace('%','');
-  $('change').textContent=(+change).toFixed(2)+'%';
+  const pair='XBTUSD';
+  const interval=({ONE_MINUTE:1,FIVE_MINUTE:5,FIFTEEN_MINUTE:15,ONE_HOUR:60}[tf]||5);
+  const raw=await getJson(`${CB}/OHLC?pair=${pair}&interval=${interval}`);
+  if(raw.error&&raw.error.length)throw new Error(raw.error.join(', '));
+  const key=Object.keys(raw.result||{}).find(k=>k!=='last');
+  const rows=key?raw.result[key]:null;
+  if(!Array.isArray(rows)||!rows.length)throw new Error('No Kraken candle data returned');
+  candles=rows.map(x=>({t:+x[0]*1000,o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[6]})).sort((a,b)=>a.t-b.t);
+  const tick=await getJson(`${CB}/Ticker?pair=${pair}`);
+  if(tick.error&&tick.error.length)throw new Error(tick.error.join(', '));
+  const tk=tick.result[Object.keys(tick.result)[0]];
+  livePrice=+tk.c[0];
+  const open=+tk.o;
+  $('change').textContent=((livePrice/open-1)*100).toFixed(2)+'%';
   $('change').className='big '+(livePrice>=open?'green':'red');
-  calculate();connect();
+  clearError();calculate();connect();
  }catch(e){
-  setStatus(false,'Data error');showError('Live market data could not be loaded: '+e.message+'. The page will retry automatically…');
+  setStatus(false,'Data error');showError('Kraken market data could not be loaded: '+e.message+'. Retrying automatically…');
   setTimeout(()=>{if(!paused)load()},5000);
  }
 }
-
 function connect(){
  if(ws)try{ws.close()}catch(e){}
  if(reconnectTimer)clearTimeout(reconnectTimer);
  ws=new WebSocket(WS);
  ws.onopen=()=>{
-  setStatus(true,'Live • Coinbase');
-  ws.send(JSON.stringify({type:'subscribe',product_ids:[symbol],channel:'ticker'}));
-  ws.send(JSON.stringify({type:'subscribe',product_ids:[symbol],channel:'heartbeats'}));
+  setStatus(true,'Live • Kraken');
+  ws.send(JSON.stringify({
+   method:'subscribe',
+   params:{channel:'ticker',symbol:['BTC/USD'],event_trigger:'bbo',snapshot:true}
+  }));
  };
  ws.onmessage=e=>{
   if(paused)return;
   try{
    const d=JSON.parse(e.data);
-   if(d.channel==='ticker'&&Array.isArray(d.events)){
-    d.events.forEach(ev=>(ev.tickers||[]).forEach(t=>{if(t.product_id===symbol&&t.price)livePrice=+t.price}));
+   if(d.channel==='ticker'&&Array.isArray(d.data)){
+    d.data.forEach(t=>{
+      if(t.symbol==='BTC/USD'){
+        const px=t.last||t.last_price;
+        if(px)livePrice=+px;
+      }
+    });
     if(Date.now()-lastDraw>250){lastDraw=Date.now();calculate()}
    }
   }catch(err){}
  };
  ws.onclose=()=>{setStatus(false,'Reconnecting…');if(!paused)reconnectTimer=setTimeout(connect,2500)};
- ws.onerror=()=>{};
+ ws.onerror=()=>{setStatus(false,'Live feed error')};
 }
-
 function model(){
  let rs=returns().slice(-96), vol=sd(rs)*Math.sqrt(1440/tfMin()),a=atr();
  let e9=ema(9),e21=ema(21),e50=ema(50),rr=rsi(), mom=mean(returns().slice(-12))*1000;
@@ -171,7 +179,7 @@ function calculate(){
   let med=p*(1+drift),lo=p*(1+drift-sigma),hi=p*(1+drift+sigma),up=clamp(.5+(m.up-.5)/Math.sqrt(scale),.08,.92),d=up>=.55?'UP':up<=.45?'DOWN':'NEUTRAL';
   return `<tr><td>${min<60?min+'m':min/60+'h'}</td><td class="${d==='UP'?'green':d==='DOWN'?'red':'yellow'}">${d}</td><td>${Math.round(Math.max(up,1-up)*100)}%</td><td>$${fmt(lo,0)} – $${fmt(hi,0)}</td><td>$${fmt(med,0)}</td><td>${eta(min)}</td></tr>`;
  }).join('');
- $('inputs').textContent=`EMA9 $${fmt(m.e9)} • EMA21 $${fmt(m.e21)} • EMA50 $${fmt(m.e50)} • RSI ${m.rr.toFixed(1)} • ATR $${fmt(m.a)} • Vol ${pct(m.vol)} • ${candles.length} candles • Source Coinbase`;
+ $('inputs').textContent=`EMA9 $${fmt(m.e9)} • EMA21 $${fmt(m.e21)} • EMA50 $${fmt(m.e50)} • RSI ${m.rr.toFixed(1)} • ATR $${fmt(m.a)} • Vol ${pct(m.vol)} • ${candles.length} candles • Source Kraken`;
  draw(lv,m);
 }
 function draw(lv,m){
