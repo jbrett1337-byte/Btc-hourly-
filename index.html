@@ -19,6 +19,7 @@ table{width:100%;border-collapse:collapse;background:var(--p);border:1px solid v
 th,td{padding:9px 8px;border-bottom:1px solid var(--l);text-align:left;font-size:12px}th{background:var(--p2);color:var(--m)}
 tr:last-child td{border:0}.bar{height:7px;background:#202a35;border-radius:10px;overflow:hidden}.fill{height:100%;background:var(--g)}
 .pill{display:inline-block;padding:4px 7px;border-radius:99px;background:var(--p2);font-size:11px}.note{color:var(--m);font-size:11px;line-height:1.5}
+.setupHero{border-width:2px}.setupGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}.setupReason{margin-top:10px;padding:10px;background:var(--p2);border-radius:8px;font-size:12px;line-height:1.55}@media(max-width:900px){.setupGrid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.setupGrid{grid-template-columns:1fr}}
 #chart{width:100%;height:300px;background:var(--p);border:1px solid var(--l);border-radius:10px}
 #error{display:none;margin-top:10px;padding:10px;border:1px solid #59323a;background:#1b1115;border-radius:8px;color:#ff9aa4;font-size:12px}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.projection{grid-template-columns:1fr}}
@@ -59,6 +60,26 @@ tr:last-child td{border:0}.bar{height:7px;background:#202a35;border-radius:10px;
   <div id="kdecision" class="signal">WAITING FOR MARKET DATA</div>
   <div id="kdecisionSub" class="sub">The tool compares your Kalshi price with the model probability and checks whether the projected move can occur before expiration.</div>
 </div>
+</div>
+
+
+<div class="section">
+  <h2>🎯 JB Entry Engine</h2>
+  <div class="card setupHero">
+    <div class="label">Current Trade Call</div>
+    <div id="setupCall" class="signal yellow">WAITING FOR DATA</div>
+    <div id="setupSub" class="sub">Analyzing structure, trend, momentum, location and risk/reward…</div>
+  </div>
+  <div class="setupGrid">
+    <div class="card"><div class="label">Best Entry Zone</div><div id="entryZone" class="big cyan">—</div><div id="entryTrigger" class="sub">—</div></div>
+    <div class="card"><div class="label">Stop / Invalidation</div><div id="setupStop" class="big red">—</div><div id="stopSub" class="sub">—</div></div>
+    <div class="card"><div class="label">Targets</div><div id="setupTargets" class="big green">—</div><div id="targetsSub" class="sub">—</div></div>
+    <div class="card"><div class="label">Setup Score</div><div id="setupScore" class="big yellow">—</div><div id="rr" class="sub">Risk/reward —</div></div>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <div class="label">Why This Call?</div>
+    <div id="setupWhy" class="setupReason">Waiting for enough market data…</div>
+  </div>
 </div>
 
 <div class="section"><h2>Live Prediction</h2><div class="grid">
@@ -406,9 +427,107 @@ function renderFractal(){
 }
 
 
+
+function candleSignal(){
+  if(candles.length<3) return {bull:false,bear:false,reclaim:false,reject:false};
+  const a=candles[candles.length-2], b=candles[candles.length-1];
+  const range=Math.max(b.h-b.l,1), body=Math.abs(b.c-b.o);
+  const bull=b.c>b.o && body/range>.35 && b.c>a.c;
+  const bear=b.c<b.o && body/range>.35 && b.c<a.c;
+  const reclaim=livePrice>b.c && b.c>b.o;
+  const reject=livePrice<b.c && b.c<b.o;
+  return {bull,bear,reclaim,reject};
+}
+
+function entryEngine(m,fr){
+  const p=m.p, A=Math.max(m.a,p*.0015);
+  const sup=fr.support?.price || p-A*2;
+  const res=fr.resistance?.price || p+A*2;
+  const trendBull=m.e9>m.e21 && m.e21>m.e50;
+  const trendBear=m.e9<m.e21 && m.e21<m.e50;
+  const structureBull=fr.status.includes('BULLISH');
+  const structureBear=fr.status.includes('BEARISH');
+  const sig=candleSignal();
+
+  // Dynamic zones centered around confirmed pivots when available.
+  const longLow=sup-A*.35, longHigh=sup+A*.35;
+  const shortLow=res-A*.35, shortHigh=res+A*.35;
+  const longNear=p>=longLow-A*.35 && p<=longHigh+A*.75;
+  const shortNear=p>=shortLow-A*.75 && p<=shortHigh+A*.35;
+
+  const longScore=
+    (trendBull?2:0)+(structureBull?2:0)+(m.rr>=52?1:0)+
+    (fr.pattern?.type==='DOUBLE BOTTOM'?2:0)+(fr.pattern?.confirmed?1:0)+
+    (longNear?2:0)+(sig.bull?1:0);
+  const shortScore=
+    (trendBear?2:0)+(structureBear?2:0)+(m.rr<=48?1:0)+
+    (fr.pattern?.type==='DOUBLE TOP'?2:0)+(fr.pattern?.confirmed?1:0)+
+    (shortNear?2:0)+(sig.bear?1:0);
+
+  let side='WAIT', score=0, zoneLow=longLow, zoneHigh=longHigh, stop=0, tp1=0,tp2=0, trigger='', reasons=[];
+  if(longScore>=shortScore && longScore>=3){
+    side='LONG'; score=longScore;
+    stop=sup-A*1.05; tp1=Math.max(res,p+A*1.15); tp2=Math.max(res+A*1.15,p+A*2.4);
+    trigger=fr.pattern?.confirmed?'Pattern confirmed — hold above reaction level':longNear?'Wait for bullish close / reclaim from support':'Wait for price to pull back into the entry zone';
+    if(trendBull) reasons.push('EMA 9 > 21 > 50');
+    if(structureBull) reasons.push('bullish fractal structure');
+    if(m.rr>=52) reasons.push('RSI momentum supports upside');
+    if(fr.pattern?.type==='DOUBLE BOTTOM') reasons.push(fr.pattern.confirmed?'confirmed double bottom':'potential double bottom');
+    if(longNear) reasons.push('price is near defined support');
+  } else if(shortScore>longScore && shortScore>=3){
+    side='SHORT'; score=shortScore; zoneLow=shortLow; zoneHigh=shortHigh;
+    stop=res+A*1.05; tp1=Math.min(sup,p-A*1.15); tp2=Math.min(sup-A*1.15,p-A*2.4);
+    trigger=fr.pattern?.confirmed?'Pattern confirmed — hold below reaction level':shortNear?'Wait for bearish rejection / failed reclaim':'Wait for price to rally into the entry zone';
+    if(trendBear) reasons.push('EMA 9 < 21 < 50');
+    if(structureBear) reasons.push('bearish fractal structure');
+    if(m.rr<=48) reasons.push('RSI momentum supports downside');
+    if(fr.pattern?.type==='DOUBLE TOP') reasons.push(fr.pattern.confirmed?'confirmed double top':'potential double top');
+    if(shortNear) reasons.push('price is near defined resistance');
+  } else {
+    const distSup=Math.abs(p-sup),distRes=Math.abs(res-p);
+    side='NO TRADE'; score=Math.max(longScore,shortScore);
+    if(distSup<distRes){zoneLow=longLow;zoneHigh=longHigh;trigger='Best opportunity is a long only after a bullish reaction / reclaim at support';}
+    else {zoneLow=shortLow;zoneHigh=shortHigh;trigger='Best opportunity is a short only after rejection / failed reclaim at resistance';}
+    reasons=['Price is not giving enough confluence for a clean entry','wait for location + confirmation instead of chasing the middle'];
+  }
+
+  score=Math.min(10,score);
+  const entry=(zoneLow+zoneHigh)/2;
+  const risk=side==='LONG'?entry-stop:side==='SHORT'?stop-entry:0;
+  const reward=side==='LONG'?tp2-entry:side==='SHORT'?entry-tp2:0;
+  const rr=risk>0?reward/risk:0;
+  const grade=side==='NO TRADE'?'WAIT':score>=8?'A+':score>=6?'A':score>=4?'B':'WATCH';
+  return {side,score,grade,zoneLow,zoneHigh,stop,tp1,tp2,trigger,reasons,rr,longScore,shortScore,sup,res};
+}
+
+function renderEntry(m,fr){
+  const e=entryEngine(m,fr);
+  const cls=e.side==='LONG'?'green':e.side==='SHORT'?'red':'yellow';
+  const label=e.side==='LONG'?(e.score>=8?'🟢 STRONG LONG SETUP':'🟡 LONG WATCH'):
+              e.side==='SHORT'?(e.score>=8?'🔴 STRONG SHORT SETUP':'🟠 SHORT WATCH'):
+              '⚪ NO TRADE / WAIT FOR LEVEL';
+  $('setupCall').textContent=label;
+  $('setupCall').className='signal '+cls;
+  $('setupSub').textContent=e.side==='NO TRADE'
+    ? 'Current price does not have enough confluence. The engine is giving you the next actionable zone instead.'
+    : `${e.grade} setup • ${e.score.toFixed(1)}/10 confluence • do not enter until the trigger is present.`;
+
+  $('entryZone').textContent='$'+fmt(e.zoneLow,0)+' – $'+fmt(e.zoneHigh,0);
+  $('entryTrigger').textContent=e.trigger;
+  $('setupStop').textContent=e.stop?'$'+fmt(e.stop,0):'—';
+  $('stopSub').textContent=e.stop?'ATR + structure invalidation':'No active trade';
+  $('setupTargets').textContent=e.tp1?'$'+fmt(e.tp1,0)+' / $'+fmt(e.tp2,0):'—';
+  $('targetsSub').textContent=e.tp1?'TP1 / TP2':'Waiting for a valid setup';
+  $('setupScore').textContent=e.side==='NO TRADE'?e.score.toFixed(1)+'/10':e.grade+' • '+e.score.toFixed(1)+'/10';
+  $('rr').textContent=e.rr?'Risk/reward to TP2: 1:'+e.rr.toFixed(2):'Risk/reward calculated only for active setups';
+  const context=`Support $${fmt(e.sup,0)} • Resistance $${fmt(e.res,0)}. `;
+  $('setupWhy').textContent=context+e.reasons.join(' • ')+'.';
+  return e;
+}
+
 function calculate(){
  if(!candles.length||!livePrice)return;
- let m=model(),p=m.p,lv=levels(m),fr=renderFractal(),bull=lv.filter(x=>x.move>0),bear=lv.filter(x=>x.move<0);
+ let m=model(),p=m.p,lv=levels(m),fr=renderFractal(),setup=renderEntry(m,fr),bull=lv.filter(x=>x.move>0),bear=lv.filter(x=>x.move<0);
  kalshiPanel(m,lv);
  $('price').textContent='$'+fmt(p);$('vol').textContent=pct(m.vol);$('atr').textContent='$'+fmt(m.a);
  let dir=m.up>=.55?'BULLISH':m.down>=.55?'BEARISH':'NEUTRAL';
