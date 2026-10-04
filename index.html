@@ -787,11 +787,11 @@ async function calculate(){
  if(!candles.length||!price)return;const t=tech(),p=detectPatterns(),rows=scanMarkets(t);render(t,p,rows);
 }
 function connect(){
- if(ws)try{ws.close()}catch(e){};ws=new WebSocket(WS);
- ws.onopen=()=>{setStatus(true,'Live • Kraken');ws.send(JSON.stringify({method:'subscribe',params:{channel:'ticker',symbol:['BTC/USD'],event_trigger:'bbo',snapshot:true}}))};
- ws.onmessage=e=>{if(paused)return;try{const d=JSON.parse(e.data);if(d.channel==='ticker'&&Array.isArray(d.data)){d.data.forEach(q=>{if(q.symbol==='BTC/USD'&&(q.last||q.last_price))price=+(q.last||q.last_price)});if(Date.now()-(window._last||0)>500){window._last=Date.now();calculate()}}}catch(_){}};
- ws.onclose=()=>{setStatus(false,'Reconnecting…');if(!paused)reconnect=setTimeout(connect,2500)};ws.onerror=()=>setStatus(false,'Feed error');
+  // REST polling is used for the GitHub Pages build so a WebSocket failure can
+  // never prevent the dashboard from loading. Kraken remains live via polling.
+  setStatus(true,'Live • Kraken');
 }
+
 async function fetchOrderBook(ticker){
  try{return await getJson(`/markets/${encodeURIComponent(ticker)}/orderbook?depth=10`)}catch(e){return null}
 }
@@ -906,29 +906,36 @@ async function loadKalshi(){
   }
 }
 async function loadAll(){
- clearErr();
- // Start the Kraken WebSocket immediately. Kalshi must never be allowed to
- // hold the whole dashboard in a 'Connecting…' state.
- connect();
- try{
-  await loadBTC();
- }catch(e){
-  setStatus(false,'Kraken error');
-  err('Kraken data error: '+e.message);
- }
- try{
-  await loadKalshi();
- }catch(e){
-  markets=[];
-  $('kalshiStatus').textContent='Kalshi: unavailable • BTC chart still live';
-  $('kalshiDiag').textContent=`Kalshi feed unavailable: ${e.message}`;
- }
- try{await calculate()}catch(e){err('Engine error: '+e.message)}
+  clearErr();
+  setStatus(false,'Loading market data…');
+  try{
+    await loadBTC();
+    setStatus(true,'Live • Kraken');
+    await calculate();
+  }catch(e){
+    setStatus(false,'Kraken error');
+    err('Kraken data error: '+e.message);
+  }
+  try{
+    await loadKalshi();
+  }catch(e){
+    markets=[];
+    $('kalshiStatus').textContent='Kalshi: unavailable • BTC chart still live';
+    $('kalshiDiag').textContent='Kalshi feed unavailable: '+e.message;
+  }
+  try{await calculate()}catch(e){err('Engine error: '+e.message)}
 }
 $('refresh').onclick=loadAll;$('tf').onchange=loadAll;$('window').onchange=calculate;
 initChartInteractions();
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
-setInterval(async()=>{if(!paused && Date.now()>=kalshiBackoffUntil){try{await loadKalshi();calculate()}catch(_){} }},20000);
+setInterval(async()=>{
+  if(paused)return;
+  try{await loadBTC();await calculate()}catch(e){setStatus(false,'Kraken error');err('Kraken data error: '+e.message)}
+},5000);
+setInterval(async()=>{
+  if(paused||Date.now()<kalshiBackoffUntil)return;
+  try{await loadKalshi();await calculate()}catch(_){}
+},20000);
 window.addEventListener('resize',()=>candles.length&&calculate());
 
 function setChartZoom(next){
