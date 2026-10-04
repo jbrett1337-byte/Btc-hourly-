@@ -168,7 +168,13 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 function setStatus(ok,t){$('dot').className='dot'+(ok?' on':'');$('conn').textContent=t}
 function err(e){$('error').style.display='block';$('error').textContent=e}
 function clearErr(){$('error').style.display='none'}
-async function getJson(u){const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);return r.json()}
+async function getJson(u){
+  let r;
+  try{r=await fetch(u,{cache:'no-store'})}
+  catch(e){throw Error('Network/CORS blocked: '+u.replace(KBASE,'KALSHI_API'))}
+  if(!r.ok)throw Error('HTTP '+r.status+' from '+u.replace(KBASE,'KALSHI_API'));
+  return r.json();
+}
 function returns(){let a=[];for(let i=1;i<candles.length;i++)a.push(Math.log(candles[i].c/candles[i-1].c));return a}
 function ema(n){if(candles.length<n)return price;let e=mean(candles.slice(0,n).map(x=>x.c)),k=2/(n+1);for(let i=n;i<candles.length;i++)e=candles[i].c*k+e*(1-k);return e}
 function rsi(n=14){if(candles.length<n+1)return 50;let g=0,l=0;for(let i=candles.length-n;i<candles.length;i++){let d=candles[i].c-candles[i-1].c;if(d>=0)g+=d;else l-=d}return l?100-100/(1+g/l):100}
@@ -265,7 +271,7 @@ function renderPattern(p,t){
  return p;
 }
 
-function marketType(m){const s=String(m.series_ticker||m.ticker||'');if(s.includes('15M'))return'15m';if(s==='KXBTCD'||s.includes('BTCD'))return'1h';if(s==='KXBTC')return'1h';return'other'}
+function marketType(m){const s=String(m.series_ticker||m.ticker||'').toUpperCase();if(s.includes('BTC15M'))return'15m';if(s==='KXBTCD'||s.includes('BTCD'))return'1h';return'other'}
 function strike(m){for(const k of ['floor_strike','strike_price','floor_strike_dollars','strike']){let n=Number(m[k]);if(Number.isFinite(n))return n}let t=String(m.ticker||'');let x=t.match(/T(\d+(?:\.\d+)?)/);return x?Number(x[1]):NaN}
 function yes(m){const b=Number(m.yes_bid_dollars),a=Number(m.yes_ask_dollars),l=Number(m.last_price_dollars);if(Number.isFinite(b)&&Number.isFinite(a))return(b+a)/2;if(Number.isFinite(l))return l;if(Number.isFinite(b))return b;return .5}
 function minutesLeft(m){const t=Date.parse(m.close_time||m.expiration_time||'');return Math.max(0,(t-Date.now())/60000)}
@@ -532,78 +538,62 @@ async function fetchOrderBook(ticker){
 async function fetchTrades(ticker){
  try{const x=await getJson(`${KBASE}/markets/trades?ticker=${encodeURIComponent(ticker)}&limit=50`);return x.trades||[]}catch(e){return[]}
 }
-async function fetchKalshiMarkets(params=''){
+async function fetchKalshiEvents(series){
   const all=[];
   let cursor='';
   for(let page=0;page<5;page++){
-    const sep=params?'&':'';
-    const u=`${KBASE}/markets?limit=1000${params?sep+params:''}${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
+    const u=`${KBASE}/events?limit=200&series_ticker=${encodeURIComponent(series)}&status=open&with_nested_markets=true${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
     const x=await getJson(u);
-    all.push(...(x?.markets||[]));
+    all.push(...(x?.events||[]));
     cursor=x?.cursor||'';
-    if(!cursor||!(x?.markets||[]).length)break;
+    if(!cursor||!(x?.events||[]).length)break;
   }
   return all;
 }
-function isBtcMarket(m){
-  const s=String(m?.series_ticker||'').toUpperCase();
-  const t=String(m?.ticker||'').toUpperCase();
-  const title=String(m?.title||'').toUpperCase();
-  const sub=String(m?.subtitle||'').toUpperCase();
-  return s.includes('BTC')||t.includes('BTC')||title.includes('BITCOIN')||sub.includes('BITCOIN');
+function flattenKalshiEvents(events){
+  const out=[];
+  for(const ev of events||[]){
+    for(const m of (ev.markets||[])){
+      out.push({...m,series_ticker:ev.series_ticker,event_title:ev.title,event_subtitle:ev.sub_title});
+    }
+  }
+  return out;
 }
 function marketWindowMinutes(m){
   const o=Date.parse(m?.open_time||'')||0,c=Date.parse(m?.close_time||m?.expiration_time||'')||0;
   return o&&c&&c>o?(c-o)/60000:NaN;
 }
 function classifyBtcMarket(m){
-  const w=marketWindowMinutes(m);
-  if(Number.isFinite(w)){
-    if(w<=25)return '15M';
-    if(w<=75)return '1H';
-  }
   const s=String(m?.series_ticker||m?.ticker||'').toUpperCase();
-  if(s.includes('15M'))return '15M';
-  if(s.includes('1H')||s.includes('HOURLY'))return '1H';
+  if(s.includes('BTC15M'))return '15M';
+  if(s==='KXBTCD'||s.includes('BTCD'))return '1H';
+  const w=marketWindowMinutes(m);
+  if(Number.isFinite(w)&&w<=25)return '15M';
   return 'BTC';
 }
 async function loadKalshi(){
   const now=Date.now();
   let all=[];
-  const attempts=[
-    'series_ticker=KXBTC15M&status=open',
-    'series_ticker=KXBTCD&status=open',
-    'status=open'
-  ];
-  for(const q of attempts){
+  const series=['KXBTC15M','KXBTCD'];
+
+  for(const s of series){
     try{
-      const got=await fetchKalshiMarkets(q);
-      all.push(...got);
+      const events=await fetchKalshiEvents(s);
+      all.push(...flattenKalshiEvents(events));
     }catch(e){}
   }
 
-  // De-duplicate by ticker.
+  // De-duplicate actual contract tickers.
   const map=new Map();
   for(const m of all)if(m?.ticker)map.set(m.ticker,m);
   all=[...map.values()];
 
-  // If series filtering did not return BTC markets, use broad open-market discovery.
-  // This handles series/ticker changes without hard-coding a single BTC series.
-  if(!all.some(isBtcMarket)){
-    try{
-      const broad=await fetchKalshiMarkets('status=open');
-      for(const m of broad)if(m?.ticker&&isBtcMarket(m))map.set(m.ticker,m);
-      all=[...map.values()];
-    }catch(e){}
-  }
-
   markets=all.filter(m=>{
-    if(!isBtcMarket(m))return false;
     const close=Date.parse(m?.close_time||m?.expiration_time||'')||0;
-    return String(m?.status||'').toLowerCase()==='open' && close>now;
+    const status=String(m?.status||'').toLowerCase();
+    return close>now && (status==='open'||status==='initialized'||!status);
   });
 
-  // Prefer the nearest active 15M and 1H contracts, then fill with other BTC markets.
   const groups={M15:[],H1:[],BTC:[]};
   for(const m of markets){
     const k=classifyBtcMarket(m);
@@ -611,27 +601,37 @@ async function loadKalshi(){
     else if(k==='1H')groups.H1.push(m);
     else groups.BTC.push(m);
   }
-  const byClose=(a,b)=>(Date.parse(a.close_time||a.expiration_time||'')||Infinity)-(Date.parse(b.close_time||b.expiration_time||'')||Infinity);
-  groups.M15.sort(byClose);groups.H1.sort(byClose);groups.BTC.sort(byClose);
-  const candidates=[...groups.M15,...groups.H1,...groups.BTC].slice(0,12);
+
+  const byClose=(a,b)=>
+    (Date.parse(a.close_time||a.expiration_time||'')||Infinity)-
+    (Date.parse(b.close_time||b.expiration_time||'')||Infinity);
+  groups.M15.sort(byClose);
+  groups.H1.sort(byClose);
+  groups.BTC.sort(byClose);
+
+  // Use the nearest active contracts, but include several nearby strikes so
+  // the model can rank the best one rather than only looking at one ticker.
+  const candidates=[...groups.M15.slice(0,8),...groups.H1.slice(0,8),...groups.BTC.slice(0,4)];
 
   await Promise.all(candidates.map(async m=>{
-    const prev=m._book||null;
     try{
-      const [book,trades]=await Promise.all([fetchOrderBook(m.ticker),fetchTrades(m.ticker)]);
-      if(book){m._prevBook=prev;m._book=book;}
+      const [book,trades]=await Promise.all([
+        fetchOrderBook(m.ticker),
+        fetchTrades(m.ticker)
+      ]);
+      if(book)m._book=book;
       m._trades=trades||[];
     }catch(e){}
   }));
 
-  const count15=groups.M15.length,count1h=groups.H1.length;
-  $('kalshiStatus').textContent=`Kalshi: ${markets.length} BTC contracts • ${count15} × 15m • ${count1h} × 1h • V7.3 live`;
+  $('kalshiStatus').textContent=
+    `Kalshi: ${markets.length} BTC contracts • ${groups.M15.length} × 15m • ${groups.H1.length} × 1h • V7.3 live`;
 
   const diag=$('kalshiDiag');
   if(diag){
     diag.textContent=markets.length
-      ? `Feed OK • ${markets.length} active BTC contracts`
-      : `No active BTC markets returned • API/discovery issue`;
+      ? `Feed OK • ${markets.length} active BTC contracts • nearest contracts loaded`
+      : `No active BTC contracts returned by Kalshi Events API`;
   }
 }
 
