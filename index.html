@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JB BTC Edge V7.7 • Live Kalshi Microstructure Sniper</title>
+<title>JB BTC Edge V7.8 • Live Kalshi Microstructure Sniper</title>
 <style>
 :root{--bg:#090d12;--p:#101720;--p2:#151f2a;--t:#edf3fa;--m:#8e9bab;--l:#263444;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff;--o:#ff9f43}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
@@ -21,7 +21,7 @@ table{width:100%;border-collapse:collapse;background:var(--p);border:1px solid v
 th,td{padding:8px;border-bottom:1px solid var(--l);text-align:left;font-size:12px}th{background:var(--p2);color:var(--m);position:sticky;top:0}tr:last-child td{border:0}
 .sniper{display:grid;grid-template-columns:1.4fr repeat(6,1fr);gap:8px}.scorebox{font-size:30px;font-weight:800}.mini{font-size:11px;color:var(--m);margin-top:3px}
 canvas{width:100%;height:440px;display:block;background:var(--p);border:1px solid var(--l);border-radius:10px}
-.chartWrap{position:relative}
+.chartTools{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:0 0 8px}.chartTools button{min-width:42px;font-weight:700;padding:8px 11px}.chartZoomLabel{font-size:11px;color:var(--m);padding:0 4px}.chartWrap{position:relative}
 .chartHint{position:absolute;right:12px;top:10px;padding:6px 9px;border:1px solid var(--l);border-radius:999px;background:rgba(12,19,27,.88);color:var(--m);font-size:11px;pointer-events:none;transition:opacity .25s}
 .chartHint.hidden{opacity:0}
 #chart{touch-action:none;cursor:crosshair}
@@ -54,7 +54,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </head>
 <body>
 <header>
-<div><h1>JB BTC Edge V7.7 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
+<div><h1>JB BTC Edge V7.8 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
 <div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
 </header>
 <main>
@@ -111,7 +111,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 <div class="card" style="margin-top:10px"><div class="label">Best Contract Microstructure</div><div id="bookDetail" class="depth">Waiting for order-book data…</div></div>
 <div class="card" style="margin-top:10px">
   <div class="microHead">
-    <div class="label">V7.7 Live Microstructure Engine</div>
+    <div class="label">V7.8 Live Microstructure Engine</div>
     <div id="microState" class="microBadge">WAITING FOR FLOW</div>
   </div>
   <div class="flowGrid" style="margin-top:9px">
@@ -129,7 +129,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
   </div>
 </div>
 <div class="card" style="margin-top:10px">
-  <div class="label">⚡ V7.7 Sniper Trigger</div>
+  <div class="label">⚡ V7.8 Sniper Trigger</div>
   <div id="sniperTrigger" class="trigger yellow">SCANNING…</div>
   <div id="sniperReason" class="triggerSmall">The trigger combines model edge, VWAP regime, pattern confirmation, volume, order-book imbalance, flow delta, liquidity behavior and time-to-expiry.</div>
 </div>
@@ -143,6 +143,13 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </div>
 
 <div class="section"><h2>📈 BTC Chart • Patterns + VWAP + Kalshi Levels</h2>
+<div class="chartTools">
+ <button id="chartZoomOut" type="button" aria-label="Zoom out chart">−</button>
+ <button id="chartZoomIn" type="button" aria-label="Zoom in chart">+</button>
+ <button id="chartZoomReset" type="button">Reset</button>
+ <span id="chartZoomLabel" class="chartZoomLabel">120 candles</span>
+ <span class="chartZoomLabel">Scroll/pinch to zoom • drag not required • tap a candle for details</span>
+</div>
 <div class="chartWrap">
 <canvas id="chart" aria-label="Interactive BTC candlestick chart. Tap or click a candle for details."></canvas>
 <div id="chartHint" class="chartHint">Tap / click any candle to inspect it</div>
@@ -164,12 +171,14 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </div>
 
 <div class="section"><div class="card"><div class="label">Data Notes</div><div class="note">
-BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V7.7 adds a rolling order-book depth/imbalance history and interactive candle inspection, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled; the tool tries the dedicated external API host first and the legacy elections API host second. This is still an analytical model, not the official Kalshi probability or settlement feed.
+BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V7.8 adds a rolling order-book depth/imbalance history and interactive candle inspection, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled. GitHub Pages cannot bypass Kalshi browser CORS, so Kalshi reads use direct public API requests first and a read-only CORS relay fallback when the browser blocks them. This is still an analytical model, not the official Kalshi probability or settlement feed.
 </div></div></div>
 </main>
 
 <script>
 const KBASES=[
+  // Kalshi's production public API is available on both hosts; keep both as
+  // fallbacks because availability/CORS behavior can differ by network.
   {name:'EXTERNAL',base:'https://external-api.kalshi.com/trade-api/v2'},
   {name:'ELECTIONS',base:'https://api.elections.kalshi.com/trade-api/v2'}
 ];
@@ -178,6 +187,10 @@ let kalshiTransport='—';
 let kalshiLastError='';
 const KRAKEN='https://api.kraken.com/0/public';
 const WS='wss://ws.kraken.com/v2';
+const KPROXIES=[
+  {name:'ALLORIGINS',base:'https://api.allorigins.win/raw?url='},
+  {name:'CORSPROXY',base:'https://corsproxy.io/?url='}
+];
 let candles=[],price=0,paused=false,ws=null,reconnect=null,markets=[],lastVol=new Map();
 const microHistory=new Map(), flowHistory=new Map(), sweepHistory=new Map();
 let lastBestTicker='';
@@ -193,23 +206,43 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 function setStatus(ok,t){$('dot').className='dot'+(ok?' on':'');$('conn').textContent=t}
 function err(e){$('error').style.display='block';$('error').textContent=e}
 function clearErr(){$('error').style.display='none'}
+async function fetchWithTimeout(url,ms=9000){
+  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms);
+  try{return await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'},signal:ctl.signal})}
+  finally{clearTimeout(timer)}
+}
+async function readJsonResponse(r,label){
+  if(!r.ok)throw Error(`${label} HTTP ${r.status}`);
+  const text=await r.text();
+  try{return JSON.parse(text)}catch(_){throw Error(`${label} non-JSON response`)}
+}
 async function getJson(pathOrUrl){
   const path=String(pathOrUrl).startsWith('http')?String(pathOrUrl).replace(/^https:\/\/[^/]+\/trade-api\/v2/,''):String(pathOrUrl);
-  let last='';
-  for(const host of KBASES){
-    const url=host.base + (path.startsWith('/')?path:'/'+path);
+  const directErrors=[];
+  const urls=KBASES.map(host=>({name:host.name,base:host.base,url:host.base+(path.startsWith('/')?path:'/'+path)}));
+  // First try Kalshi directly. Static GitHub Pages cannot bypass a Kalshi
+  // CORS policy, so if the browser blocks these requests we transparently
+  // fall back to a public read-only CORS relay. No credentials are sent.
+  for(const item of urls){
     try{
-      const r=await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'}});
-      if(!r.ok){last=`${host.name} HTTP ${r.status}`;continue}
-      const text=await r.text();
-      let data;
-      try{data=JSON.parse(text)}catch(_){last=`${host.name} non-JSON response`;continue}
-      KBASE=host.base;kalshiTransport=host.name;kalshiLastError='';
+      const data=await readJsonResponse(await fetchWithTimeout(item.url),item.name);
+      KBASE=item.base;kalshiTransport=item.name;kalshiLastError='';
       return data;
-    }catch(e){last=`${host.name} ${e?.message||'network error'}`}
+    }catch(e){directErrors.push(`${item.name} ${e?.message||'network/CORS error'}`)}
   }
-  kalshiLastError=last;
-  throw Error(`Kalshi unavailable (${last})`);
+  const proxyErrors=[];
+  for(const item of urls){
+    for(const proxy of KPROXIES){
+      try{
+        const proxied=proxy.base+encodeURIComponent(item.url);
+        const data=await readJsonResponse(await fetchWithTimeout(proxied,10000),`${proxy.name}/${item.name}`);
+        KBASE=item.base;kalshiTransport=`${proxy.name} • ${item.name}`;kalshiLastError='';
+        return data;
+      }catch(e){proxyErrors.push(`${proxy.name}/${item.name} ${e?.message||'failed'}`)}
+    }
+  }
+  kalshiLastError=[...directErrors,...proxyErrors].join(' | ');
+  throw Error(`Kalshi unavailable — ${kalshiLastError}`);
 }
 function returns(){let a=[];for(let i=1;i<candles.length;i++)a.push(Math.log(candles[i].c/candles[i-1].c));return a}
 function ema(n){if(candles.length<n)return price;let e=mean(candles.slice(0,n).map(x=>x.c)),k=2/(n+1);for(let i=n;i<candles.length;i++)e=candles[i].c*k+e*(1-k);return e}
@@ -522,6 +555,9 @@ function render(t,p,rows){
 let selectedCandleTs=null;
 let hoveredCandleIndex=null;
 let chartView=null;
+let chartZoom=1;
+const CHART_MAX_CANDLES=240;
+const CHART_MIN_CANDLES=30;
 
 function candleFromPointer(clientX){
  const c=$('chart');
@@ -595,7 +631,8 @@ function initChartInteractions(){
 
 function draw(t,p,rows){
  const c=$('chart'),ctx=c.getContext('2d'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
- const data=candles.slice(-120),vals=data.flatMap(x=>[x.h,x.l]);if(!vals.length)return;
+ const visibleCount=clamp(Math.round(120/chartZoom),CHART_MIN_CANDLES,CHART_MAX_CANDLES);
+ const data=candles.slice(-visibleCount),vals=data.flatMap(x=>[x.h,x.l]);if(!vals.length)return;
  let mn=Math.min(...vals),mx=Math.max(...vals);[t.b.m36,t.b.m08,t.b.vw,t.b.p08,t.b.p36].forEach(x=>{mn=Math.min(mn,x);mx=Math.max(mx,x)});rows.slice(0,8).forEach(r=>{if(Number.isFinite(r.strike)){mn=Math.min(mn,r.strike);mx=Math.max(mx,r.strike)}});
  const pad=(mx-mn)*.08||1;mn-=pad;mx+=pad;const L=62,R=15,T=20,B=28,PW=w-L-R,PH=h-T-B,x=i=>L+i/Math.max(1,data.length-1)*PW,y=v=>T+(mx-v)/(mx-mn)*PH;
  chartView={data,L,R,T,B,PW,PH,w,h,x,y,cw:Math.max(2,Math.min(8,PW/data.length*.7))};
@@ -618,7 +655,7 @@ function draw(t,p,rows){
 function drawPattern(ctx,p,x,y,L,R){
  ctx.save();ctx.lineWidth=2;ctx.setLineDash([]);
  const col=p.dir==='bull'?'#39d98a':p.dir==='bear'?'#ff5d6c':'#ffd166';ctx.strokeStyle=col;ctx.fillStyle=col;
- const windowStart=Math.max(0,candles.length-120),last=candles.length-1;
+ const windowStart=Math.max(0,candles.length-chartView.data.length),last=candles.length-1;
  const local=i=>i-windowStart;
  const inView=i=>i>=windowStart&&i<=last;
  const right=x(Math.max(0,last-windowStart));
@@ -799,7 +836,7 @@ async function loadKalshi(){
 
   // Prefer the nearest 15m and 1h contracts. Keep a few additional BTC
   // contracts so the scanner can recover even if one feed is delayed.
-  const candidates=[...groups.M15.slice(0,10),...groups.H1.slice(0,10),...groups.BTC.slice(0,5)];
+  const candidates=[...groups.M15.slice(0,4),...groups.H1.slice(0,4),...groups.BTC.slice(0,2)];
   markets=candidates;
 
   await Promise.all(candidates.map(async m=>{
@@ -846,6 +883,21 @@ initChartInteractions();
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
 setInterval(async()=>{if(!paused){try{await loadKalshi();calculate()}catch(_){} }},7000);
 window.addEventListener('resize',()=>candles.length&&calculate());
+
+function setChartZoom(next){
+  chartZoom=clamp(next,.5,4);
+  const count=clamp(Math.round(120/chartZoom),CHART_MIN_CANDLES,CHART_MAX_CANDLES);
+  $('chartZoomLabel').textContent=`${count} candles • ${chartZoom.toFixed(2)}×`;
+  drawCurrent();
+}
+$('chartZoomIn').onclick=()=>setChartZoom(chartZoom*1.25);
+$('chartZoomOut').onclick=()=>setChartZoom(chartZoom/1.25);
+$('chartZoomReset').onclick=()=>setChartZoom(1);
+$('chart').addEventListener('wheel',e=>{
+  e.preventDefault();
+  setChartZoom(chartZoom*(e.deltaY<0?1.18:.85));
+},{passive:false});
+setChartZoom(1);
 
 window.addEventListener('error',e=>{if(e?.message){err('Engine error: '+e.message)}});
 window.addEventListener('unhandledrejection',e=>{const m=e?.reason?.message||String(e?.reason||'Unknown promise error');err('Engine error: '+m)});
