@@ -434,7 +434,7 @@ function updateV72(r,t,p){
  drawHeatmap(r);
 }
 function best(rows,t,p){
- if(!rows.length){$('bestCall').textContent='NO ACTIVE CONTRACT';return}
+ if(!rows.length){$('bestCall').textContent='NO ACTIVE CONTRACT';$('bestWhy').textContent='No active BTC contract data received from Kalshi.';return}
  const ranked=rows.map(r=>{
    const pa=p?(p.dir==='bull'?.02:p.dir==='bear'?-0.02:0):0;
    const micro=r.activity.book.imbalance*.035+r.activity.flow.ratio*.025;
@@ -532,39 +532,115 @@ async function fetchOrderBook(ticker){
 async function fetchTrades(ticker){
  try{const x=await getJson(`${KBASE}/markets/trades?ticker=${encodeURIComponent(ticker)}&limit=50`);return x.trades||[]}catch(e){return[]}
 }
-async function loadKalshi(){
- const urls=[`${KBASE}/markets?series_ticker=KXBTC15M&status=open&limit=100`,`${KBASE}/markets?series_ticker=KXBTCD&status=open&limit=100`];
- let all=[];for(const u of urls){try{const x=await getJson(u);all.push(...(x.markets||[]))}catch(e){}}
- if(!all.length){
-   try{
-     const x=await getJson(`${KBASE}/markets?status=open&limit=1000`);
-     all=(x.markets||[]).filter(m=>String(m.ticker||m.series_ticker||'').includes('KXBTC'));
-   }catch(e){}
- }
- const now=Date.now();
- markets=all.filter(m=>(Date.parse(m.close_time||m.expiration_time||'')||0)>now);
- const candidates=markets.slice().sort((a,b)=>minutesLeft(a)-minutesLeft(b)).slice(0,8);
- await Promise.all(candidates.map(async m=>{
-   const old=microHistory.has(m.ticker)?microHistory.get(m.ticker).at(-1):null;
-   const [book,trades]=await Promise.all([fetchOrderBook(m.ticker),fetchTrades(m.ticker)]);
-   if(old)m._prevBook=old.bookRaw;
-   if(book){
-      m._book=book;
-      const hist=microHistory.get(m.ticker);
-      if(hist&&hist.length)hist[hist.length-1].bookRaw=book;
-   }
-   m._trades=trades;
-   const hist=microHistory.get(m.ticker)||[];
-   if(hist.length&&hist.at(-1))hist.at(-1).bookRaw=book||hist.at(-1).bookRaw;
- }));
- $('kalshiStatus').textContent=`Kalshi: ${markets.length} BTC contracts • V7.2 depth/flow engine live`;
+async function fetchKalshiMarkets(params=''){
+  const all=[];
+  let cursor='';
+  for(let page=0;page<5;page++){
+    const sep=params?'&':'';
+    const u=`${KBASE}/markets?limit=1000${params?sep+params:''}${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
+    const x=await getJson(u);
+    all.push(...(x?.markets||[]));
+    cursor=x?.cursor||'';
+    if(!cursor||!(x?.markets||[]).length)break;
+  }
+  return all;
 }
+function isBtcMarket(m){
+  const s=String(m?.series_ticker||'').toUpperCase();
+  const t=String(m?.ticker||'').toUpperCase();
+  const title=String(m?.title||'').toUpperCase();
+  const sub=String(m?.subtitle||'').toUpperCase();
+  return s.includes('BTC')||t.includes('BTC')||title.includes('BITCOIN')||sub.includes('BITCOIN');
+}
+function marketWindowMinutes(m){
+  const o=Date.parse(m?.open_time||'')||0,c=Date.parse(m?.close_time||m?.expiration_time||'')||0;
+  return o&&c&&c>o?(c-o)/60000:NaN;
+}
+function classifyBtcMarket(m){
+  const w=marketWindowMinutes(m);
+  if(Number.isFinite(w)){
+    if(w<=25)return '15M';
+    if(w<=75)return '1H';
+  }
+  const s=String(m?.series_ticker||m?.ticker||'').toUpperCase();
+  if(s.includes('15M'))return '15M';
+  if(s.includes('1H')||s.includes('HOURLY'))return '1H';
+  return 'BTC';
+}
+async function loadKalshi(){
+  const now=Date.now();
+  let all=[];
+  const attempts=[
+    'series_ticker=KXBTC15M&status=open',
+    'series_ticker=KXBTCD&status=open',
+    'status=open'
+  ];
+  for(const q of attempts){
+    try{
+      const got=await fetchKalshiMarkets(q);
+      all.push(...got);
+    }catch(e){}
+  }
+
+  // De-duplicate by ticker.
+  const map=new Map();
+  for(const m of all)if(m?.ticker)map.set(m.ticker,m);
+  all=[...map.values()];
+
+  // If series filtering did not return BTC markets, use broad open-market discovery.
+  // This handles series/ticker changes without hard-coding a single BTC series.
+  if(!all.some(isBtcMarket)){
+    try{
+      const broad=await fetchKalshiMarkets('status=open');
+      for(const m of broad)if(m?.ticker&&isBtcMarket(m))map.set(m.ticker,m);
+      all=[...map.values()];
+    }catch(e){}
+  }
+
+  markets=all.filter(m=>{
+    if(!isBtcMarket(m))return false;
+    const close=Date.parse(m?.close_time||m?.expiration_time||'')||0;
+    return String(m?.status||'').toLowerCase()==='open' && close>now;
+  });
+
+  // Prefer the nearest active 15M and 1H contracts, then fill with other BTC markets.
+  const groups={M15:[],H1:[],BTC:[]};
+  for(const m of markets){
+    const k=classifyBtcMarket(m);
+    if(k==='15M')groups.M15.push(m);
+    else if(k==='1H')groups.H1.push(m);
+    else groups.BTC.push(m);
+  }
+  const byClose=(a,b)=>(Date.parse(a.close_time||a.expiration_time||'')||Infinity)-(Date.parse(b.close_time||b.expiration_time||'')||Infinity);
+  groups.M15.sort(byClose);groups.H1.sort(byClose);groups.BTC.sort(byClose);
+  const candidates=[...groups.M15,...groups.H1,...groups.BTC].slice(0,12);
+
+  await Promise.all(candidates.map(async m=>{
+    const prev=m._book||null;
+    try{
+      const [book,trades]=await Promise.all([fetchOrderBook(m.ticker),fetchTrades(m.ticker)]);
+      if(book){m._prevBook=prev;m._book=book;}
+      m._trades=trades||[];
+    }catch(e){}
+  }));
+
+  const count15=groups.M15.length,count1h=groups.H1.length;
+  $('kalshiStatus').textContent=`Kalshi: ${markets.length} BTC contracts • ${count15} × 15m • ${count1h} × 1h • V7.3 live`;
+
+  const diag=$('kalshiDiag');
+  if(diag){
+    diag.textContent=markets.length
+      ? `Feed OK • ${markets.length} active BTC contracts`
+      : `No active BTC markets returned • API/discovery issue`;
+  }
+}
+
 async function loadAll(){
  clearErr();try{await loadBTC();await loadKalshi();await calculate();connect()}catch(e){setStatus(false,'Data error');err('Market data error: '+e.message+' — retrying.');setTimeout(()=>{if(!paused)loadAll()},8000)}
 }
 $('refresh').onclick=loadAll;$('tf').onchange=loadAll;$('window').onchange=calculate;
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
-setInterval(async()=>{if(!paused){try{await loadKalshi();calculate()}catch(_){} }},5000);
+setInterval(async()=>{if(!paused){try{await loadKalshi();calculate()}catch(_){} }},7000);
 window.addEventListener('resize',()=>candles.length&&calculate());
 loadAll();
 </script>
