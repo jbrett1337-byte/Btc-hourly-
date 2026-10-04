@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JB BTC Edge V8.8 • Live BTC Technical Dashboard</title>
+<style>
+:root{--bg:#090d12;--p:#101720;--p2:#151f2a;--t:#edf3fa;--m:#8e9bab;--l:#263444;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff;--o:#ff9f43}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
+header{padding:16px;border-bottom:1px solid var(--l);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{margin:0;font-size:20px}.sub{color:var(--m);font-size:12px;margin-top:4px}.status{display:flex;gap:8px;align-items:center}.dot{width:9px;height:9px;border-radius:50%;background:var(--r)}.dot.on{background:var(--g)}
+main{max-width:1900px;margin:auto;padding:14px}.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+button,select{background:var(--p2);color:var(--t);border:1px solid var(--l);border-radius:7px;padding:9px 10px}button{cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.card{background:var(--p);border:1px solid var(--l);border-radius:10px;padding:12px}.hero{border-width:2px}
+.label{color:var(--m);font-size:11px;text-transform:uppercase;letter-spacing:.5px}.big{font-size:25px;font-weight:700;margin-top:6px}
+.green{color:var(--g)}.red{color:var(--r)}.yellow{color:var(--y)}.cyan{color:var(--c)}.orange{color:var(--o)}.signal{font-size:18px;font-weight:700}
+.section{margin-top:13px}.section h2{font-size:14px;margin:0 0 8px}.pill{display:inline-block;padding:4px 7px;border-radius:99px;background:var(--p2);font-size:11px}
+.note{color:var(--m);font-size:11px;line-height:1.5}.bar{height:7px;background:#202a35;border-radius:10px;overflow:hidden}.fill{height:100%;background:var(--g)}
+table{width:100%;border-collapse:collapse;background:var(--p);border:1px solid var(--l);border-radius:10px;overflow:hidden}
+th,td{padding:8px;border-bottom:1px solid var(--l);text-align:left;font-size:12px}th{background:var(--p2);color:var(--m);position:sticky;top:0}tr:last-child td{border:0}
+.scorebox{font-size:30px;font-weight:800}.mini{font-size:11px;color:var(--m);margin-top:3px}
+canvas{width:100%;height:900px;display:block;touch-action:none;background:var(--p);border:1px solid var(--l);border-radius:10px}
+.chartTools{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:0 0 8px}.chartTools button{min-width:42px;font-weight:700;padding:8px 11px}.chartZoomLabel{font-size:11px;color:var(--m);padding:0 4px}.chartWrap{position:relative;position:relative}.chartCandleDetails{margin:0;border-radius:0 0 10px 10px;border-top:1px solid var(--l);background:rgba(16,23,32,.98)}
+.chartHint{position:absolute;right:12px;top:10px;padding:6px 9px;border:1px solid var(--l);border-radius:999px;background:rgba(12,19,27,.88);color:var(--m);font-size:11px;pointer-events:none;transition:opacity .25s}
+.chartHint.hidden{opacity:0}
+#chart{touch-action:none;cursor:crosshair}
+.candleDetails{margin-top:9px;padding:11px 12px;border:1px solid var(--l);border-radius:10px;background:var(--p2);min-height:58px}
+.candleDetailsEmpty{color:var(--m);font-size:12px}
+.candleGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.candleMetric{min-width:0}
+.candleMetric .label{font-size:10px}
+.candleMetric .value{font-size:13px;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.candleSelected{font-size:12px;font-weight:700;margin-bottom:7px}
+@media(max-width:700px){.candleGrid{grid-template-columns:repeat(3,1fr)}}
+
+.patternGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.depth{font-family:monospace;font-size:11px;line-height:1.55}.imbalance{font-size:25px;font-weight:800}.bookRow{display:flex;justify-content:space-between;border-bottom:1px solid var(--l);padding:4px 0}.buy{color:var(--g)}.sell{color:var(--r)}.patternTitle{font-size:20px;font-weight:800}.def{font-size:12px;line-height:1.55;color:var(--m);margin-top:7px}.metric{display:inline-block;margin:5px 5px 0 0;padding:5px 7px;background:var(--p2);border-radius:7px;font-size:11px}
+#error{display:none;margin-top:10px;padding:10px;border:1px solid #59323a;background:#1b1115;border-radius:8px;color:#ff9aa4;font-size:12px}
+@media(max-width:1150px){.grid5{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:750px){.grid{grid-template-columns:repeat(2,1fr)}.grid5,.patternGrid{grid-template-columns:1fr 1fr}th:nth-child(n+8),td:nth-child(n+8){display:none}}
+@media(max-width:500px){.grid,.grid5,.patternGrid{grid-template-columns:1fr}}
+
+</style>
+</head>
+<body>
+<header>
+<div><h1>JB BTC Edge V8.8 • Live BTC Technical Dashboard</h1><div class="sub">VWAP 0.8σ / 3.6σ • dynamic support/resistance • pivots • pattern confirmation • Kraken/Coinbase fallback</div></div>
+<div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
+</header>
+<main>
+<div class="controls">
+<select id="tf"><option value="1">1m</option><option value="5" selected>5m</option><option value="15">15m</option><option value="60">1h</option></select>
+<button id="refresh">Refresh</button><button id="pause">Pause live</button>
+</div>
+<div id="error"></div>
+<div class="grid">
+<div class="card"><div class="label">Live BTC</div><div id="price" class="big">—</div></div>
+<div class="card"><div class="label">24h Change</div><div id="change" class="big">—</div></div>
+<div class="card"><div class="label">BTC Volume Ratio</div><div id="volRatio" class="big cyan">—</div><div id="volSub" class="mini">current / average</div></div>
+<div class="card"><div class="label">ATR</div><div id="atr" class="big">—</div></div>
+</div>
+
+<div class="section"><h2>VWAP Regime • 0.8σ / 3.6σ</h2>
+<div class="grid5">
+<div class="card"><div class="label">VWAP</div><div id="vwap" class="big cyan">—</div></div>
+<div class="card"><div class="label">-3.6σ Extreme</div><div id="m36" class="big red">—</div></div>
+<div class="card"><div class="label">-0.8σ</div><div id="m08" class="big red">—</div></div>
+<div class="card"><div class="label">+0.8σ</div><div id="p08" class="big green">—</div></div>
+<div class="card"><div class="label">+3.6σ Extreme</div><div id="p36" class="big green">—</div></div>
+</div>
+<div class="card" style="margin-top:10px"><div class="label">VWAP Position</div><div id="vwapRegime" class="signal yellow">WAITING</div><div id="vwapReason" class="note">Waiting for candles.</div></div>
+</div>
+
+
+<div class="section"><h2>📐 Pattern Recognition Engine</h2>
+<div class="patternGrid">
+<div class="card hero"><div class="label">Active Pattern</div><div id="patternName" class="patternTitle yellow">SCANNING…</div><div id="patternStatus" class="sub">Waiting for enough structure.</div><div id="patternDef" class="def">The engine searches for impulse/consolidation structures, reversals, triangles, wedges, flags, pennants, sweeps and breakouts.</div><div id="patternMetrics"></div></div>
+<div class="card"><div class="label">Pattern Decision Impact</div><div id="patternImpact" class="signal yellow">NEUTRAL</div><div id="patternWhy" class="def">No confirmed pattern yet.</div></div>
+</div>
+</div>
+
+<div class="section"><h2>📈 BTC Chart • Patterns + VWAP + Dynamic S/R + Pivots</h2>
+<div class="chartTools">
+ <button id="chartZoomOut" type="button" aria-label="Zoom out chart">−</button>
+ <button id="chartZoomIn" type="button" aria-label="Zoom in chart">+</button>
+ <button id="chartZoomReset" type="button">Reset Zoom</button>
+
+ <span id="chartZoomLabel" class="chartZoomLabel">120 candles</span>
+ <span class="chartZoomLabel">Scroll/pinch to zoom • dynamic S/R follows price • tap a candle for details</span>
+</div>
+<div class="chartWrap">
+<canvas id="chart" aria-label="Interactive BTC candlestick chart. Tap or click a candle for details."></canvas>
+<div id="chartHint" class="chartHint">Tap / click any candle to inspect it</div>
+<div id="candleDetails" class="candleDetails chartCandleDetails">
+  <div class="candleDetailsEmpty">Select a candle to see its exact time, OHLC, range, volume and move.</div>
+</div>
+</div>
+<div class="note" style="margin-top:7px">Pattern labels and definitions are model classifications. A drawn pattern is not a guarantee; “CONFIRMED” requires the engine’s confirmation rule, usually a boundary break and/or volume confirmation.</div>
+</div>
+
+<div class="section"><h2>Model Inputs</h2>
+<div class="grid5">
+<div class="card"><div class="label">Trend</div><div id="trend" class="signal">—</div></div>
+<div class="card"><div class="label">RSI</div><div id="rsi" class="big">—</div></div>
+<div class="card"><div class="label">Structure</div><div id="structure" class="signal">—</div></div>
+<div class="card"><div class="label">BTC Volume</div><div id="btcVolume" class="big">—</div></div>
+<div class="card"><div class="label">Regime Score</div><div id="regimeScore" class="big yellow">—</div></div>
+</div>
+</div>
+
+<div class="section"><div class="card"><div class="label">Data Notes</div><div class="note">
+BTC candles use Kraken public data for technical calculations. Technical levels are model-derived from price, volume, volatility, swing structure, prior-session pivots and dynamic clustering. Support/resistance lines are recalculated from the live price and recent swing structure as price moves.
+</div></div></div>
+</main>
+
+<script>
+const KRAKEN='https://api.kraken.com/0/public';
+
+// Shared timeout helper for Kraken/Coinbase browser requests.
+async function fetchWithTimeout(url,ms=10000){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),ms);
+  try{
+    return await fetch(url,{cache:'no-store',signal:controller.signal});
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+const WS='wss://ws.kraken.com/v2';
+// GitHub Pages is static, so it cannot act as a server-side CORS proxy.
+
+// Core runtime state/helpers. These must exist before the startup call at the
+// bottom of the page; without them the dashboard stops before the first API
+// request and remains stuck on "Connecting…".
+let candles=[];
+let price=0;
+let paused=false;
+let ws=null;
+let reconnect=null;
+const $=id=>document.getElementById(id);
+function clamp(v,min,max){return Math.min(max,Math.max(min,v))}
+function mean(a){return a&&a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
+function fmt(v,d=2){return Number.isFinite(Number(v))?Number(v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d}):'—'}
+function pct(v,d=1){const n=Number(v);return Number.isFinite(n)?((n*100).toFixed(d)+'%'):'—'}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])||c)}
+function setStatus(ok,text){
+  const dot=$('dot'),conn=$('conn');
+  if(conn)conn.textContent=text||'';
+  if(dot)dot.className='dot '+(ok?'on':'');
+}
+function clearErr(){
+  const e=$('error');
+  if(e){e.textContent='';e.style.display='none'}
+}
+function err(msg){
+  const e=$('error');
+  if(e){e.textContent=String(msg||'');e.style.display=msg?'block':'none'}
+}
+
+function returns(){let a=[];for(let i=1;i<candles.length;i++)a.push(Math.log(candles[i].c/candles[i-1].c));return a}
+function ema(n){if(candles.length<n)return price;let e=mean(candles.slice(0,n).map(x=>x.c)),k=2/(n+1);for(let i=n;i<candles.length;i++)e=candles[i].c*k+e*(1-k);return e}
+function rsi(n=14){if(candles.length<n+1)return 50;let g=0,l=0;for(let i=candles.length-n;i<candles.length;i++){let d=candles[i].c-candles[i-1].c;if(d>=0)g+=d;else l-=d}return l?100-100/(1+g/l):100}
+function atr(n=14){if(candles.length<n+1)return price*.0015;let tr=[];for(let i=candles.length-n;i<candles.length;i++){let x=candles[i],p=candles[i-1].c;tr.push(Math.max(x.h-x.l,Math.abs(x.h-p),Math.abs(x.l-p)))}return mean(tr)}
+function vwapBands(){
+ const d=new Date();d.setUTCHours(0,0,0,0);
+ const use=candles.filter(x=>x.t>=d.getTime()); const rows=use.length>5?use:candles.slice(-200);
+ let pv=0,v=0;rows.forEach(x=>{let tp=(x.h+x.l+x.c)/3,q=Math.max(x.v||0,1);pv+=tp*q;v+=q});
+ const vw=v?pv/v:price;let variance=0;rows.forEach(x=>{let tp=(x.h+x.l+x.c)/3,q=Math.max(x.v||0,1);variance+=q*(tp-vw)**2});
+ let s=v?Math.sqrt(variance/v):price*.003;
+ return {vw,s,m36:vw-3.6*s,m08:vw-.8*s,p08:vw+.8*s,p36:vw+3.6*s};
+}
+function volInfo(){const n=Math.min(24,candles.length-1);if(n<5)return{cur:0,avg:0,ratio:1,delta:0};const v=candles.slice(-(n+1)).map(x=>x.v||0),cur=v.at(-1),avg=mean(v.slice(0,-1)),prev=mean(v.slice(-7,-1))||avg;return{cur,avg,ratio:avg?cur/avg:1,delta:prev?cur/prev-1:0}}
+function structure(){
+ if(candles.length<12)return'DEVELOPING';let h=[],l=[];
+ for(let i=2;i<candles.length-2;i++){if(candles[i].h>candles[i-1].h&&candles[i].h>candles[i-2].h&&candles[i].h>=candles[i+1].h&&candles[i].h>=candles[i+2].h)h.push({i,p:candles[i].h});if(candles[i].l<candles[i-1].l&&candles[i].l<candles[i-2].l&&candles[i].l<=candles[i+1].l&&candles[i].l<=candles[i+2].l)l.push({i,p:candles[i].l})}
+ if(h.length<2||l.length<2)return'RANGE';return h.at(-1).p>h.at(-2).p&&l.at(-1).p>l.at(-2).p?'BULLISH':h.at(-1).p<h.at(-2).p&&l.at(-1).p<l.at(-2).p?'BEARISH':'RANGE'
+}
+function tech(){
+ const b=vwapBands(),v=volInfo(),e9=ema(9),e21=ema(21),e50=ema(50),r=rsi(),s=structure();
+ let z=0;z+=clamp((e9/e21-1)*700,-2,2);z+=clamp((e21/e50-1)*450,-2,2);z+=clamp((r-50)/14,-2,2);z+=s==='BULLISH'?1.5:s==='BEARISH'?-1.5:0;z+=price>b.vw?.8:-.8;z+=price>b.p08?.6:price<b.m08?-.6:0;z+=clamp((v.ratio-1)*.7,-1.2,1.8);
+ const up=clamp(.5+.105*z,.05,.95);let regime=price>=b.p36?'EXTREME UPPER':price>=b.p08?'UPPER':price<=b.m36?'EXTREME LOWER':price<=b.m08?'LOWER':price>=b.vw?'ABOVE VWAP':'BELOW VWAP';
+ return{b,v,e9,e21,e50,r,s,z,up,down:1-up,regime}
+}
+
+function pivotList(){
+ let h=[],l=[];for(let i=2;i<candles.length-2;i++){
+  if(candles[i].h>candles[i-1].h&&candles[i].h>candles[i-2].h&&candles[i].h>=candles[i+1].h&&candles[i].h>=candles[i+2].h)h.push({i,p:candles[i].h,t:candles[i].t});
+  if(candles[i].l<candles[i-1].l&&candles[i].l<candles[i-2].l&&candles[i].l<=candles[i+1].l&&candles[i].l<=candles[i+2].l)l.push({i,p:candles[i].l,t:candles[i].t});
+ }return{h,l}
+}
+const DEFINITIONS={
+'BULL FLAG':'A strong upward impulse (the pole) followed by a relatively shallow downward or sideways consolidation. A break above the flag boundary confirms bullish continuation.',
+'BEAR FLAG':'A strong downward impulse followed by a relatively shallow upward or sideways consolidation. A break below the flag boundary confirms bearish continuation.',
+'BULL PENNANT':'A strong upward impulse followed by a compact converging consolidation. A breakout above the converging boundaries confirms bullish continuation.',
+'BEAR PENNANT':'A strong downward impulse followed by a compact converging consolidation. A breakdown below the converging boundaries confirms bearish continuation.',
+'DOUBLE BOTTOM':'Two swing lows at similar prices separated by a meaningful reaction high. A break above that reaction high confirms the reversal.',
+'DOUBLE TOP':'Two swing highs at similar prices separated by a meaningful reaction low. A break below that reaction low confirms the reversal.',
+'ASCENDING TRIANGLE':'Repeated resistance near a horizontal level while swing lows rise. A breakout above resistance confirms bullish continuation.',
+'DESCENDING TRIANGLE':'Repeated support near a horizontal level while swing highs fall. A breakdown below support confirms bearish continuation.',
+'SYMMETRICAL TRIANGLE':'Lower highs and higher lows compress price into converging boundaries. Direction is confirmed by the eventual boundary break.',
+'RISING WEDGE':'Higher highs and higher lows form inside converging upward trendlines. A downside break can signal bearish reversal.',
+'FALLING WEDGE':'Lower highs and lower lows form inside converging downward trendlines. An upside break can signal bullish reversal.',
+'LIQUIDITY SWEEP':'Price briefly takes a prior swing high or low and then reverses back through the level, suggesting a failed breakout or trapped liquidity.',
+'BREAKOUT':'Price closes beyond a meaningful resistance or consolidation boundary. Volume expansion strengthens confirmation.',
+'BREAKDOWN':'Price closes below a meaningful support or consolidation boundary. Volume expansion strengthens confirmation.',
+'RANGE / COMPRESSION':'Price is contained between nearby support and resistance with contracting range. Wait for a clean boundary break.'
+};
+function lineFit(points){if(points.length<2)return null;let n=points.length,sx=0,sy=0,sxx=0,sxy=0;points.forEach(q=>{sx+=q.i;sy+=q.p;sxx+=q.i*q.i;sxy+=q.i*q.p});let den=n*sxx-sx*sx;if(!den)return null;let m=(n*sxy-sx*sy)/den,c=(sy-m*sx)/n;return{i0:points[0].i,i1:points.at(-1).i,m,c,at:i=>m*i+c}}
+function detectPatterns(){
+ if(candles.length<35)return null;const p=pivotList(),hs=p.h.slice(-8),ls=p.l.slice(-8),A=Math.max(atr(),price*.001);
+ let candidates=[];
+ function add(name,dir,score,meta,draw){candidates.push({name,dir,score,meta,draw,definition:DEFINITIONS[name]})}
+ const recent=candles.slice(-35),start=candles.length-35,hi=Math.max(...recent.map(x=>x.h)),lo=Math.min(...recent.map(x=>x.l));
+ // Double bottom/top
+ if(ls.length>=2){let a=ls.at(-2),b=ls.at(-1),reaction=Math.max(...candles.slice(a.i,b.i+1).map(x=>x.h)),sim=Math.abs(a.p-b.p)<=A*.75,sep=b.i-a.i>=3,confirmed=price>reaction;if(sim&&sep)add('DOUBLE BOTTOM','bull',confirmed?90:76,{a,b,reaction,confirmed},[{x1:a.i,x2:b.i,y:a.p}])}
+ if(hs.length>=2){let a=hs.at(-2),b=hs.at(-1),reaction=Math.min(...candles.slice(a.i,b.i+1).map(x=>x.l)),sim=Math.abs(a.p-b.p)<=A*.75,sep=b.i-a.i>=3,confirmed=price<reaction;if(sim&&sep)add('DOUBLE TOP','bear',confirmed?90:76,{a,b,reaction,confirmed},[{x1:a.i,x2:b.i,y:a.p}])}
+ // Flag / pennant using an impulse in the last 35 bars and a consolidation in last 10
+ const pole=candles.slice(-25,-10),flag=candles.slice(-10),ph=Math.max(...pole.map(x=>x.h)),pl=Math.min(...pole.map(x=>x.l)),fh=Math.max(...flag.map(x=>x.h)),fl=Math.min(...flag.map(x=>x.l)),poleMove=(ph-pl)/price,flagRange=(fh-fl)/price;
+ const poleUp=pole.at(-1).c>pole[0].o&&poleMove>.003,poleDown=pole.at(-1).c<pole[0].o&&poleMove>.003;
+ const fHi=flag.map((x,j)=>({i:start+25+j,p:x.h})),fLo=flag.map((x,j)=>({i:start+25+j,p:x.l})),fitH=lineFit(fHi),fitL=lineFit(fLo);
+ const slopeH=fitH?.m||0,slopeL=fitL?.m||0,contract=Math.abs(flagRange)<Math.abs(poleMove)*.55;
+ if(poleUp&&contract){const converging=slopeH<0&&slopeL>0,breakout=price>(fitH?fitH.at(candles.length-1):fh),vol=volInfo().ratio;if(converging)add('BULL PENNANT','bull',breakout?92:79,{breakout,volume:vol,fitH,fitL},[{fitH,fitL}]);else add('BULL FLAG','bull',breakout?88:74,{breakout,volume:vol,fitH,fitL},[{fitH,fitL}])}
+ if(poleDown&&contract){const converging=slopeH<0&&slopeL>0,breakdown=price<(fitL?fitL.at(candles.length-1):fl),vol=volInfo().ratio;if(converging)add('BEAR PENNANT','bear',breakdown?92:79,{breakdown,volume:vol,fitH,fitL},[{fitH,fitL}]);else add('BEAR FLAG','bear',breakdown?88:74,{breakdown,volume:vol,fitH,fitL},[{fitH,fitL}])}
+ // Triangles / wedges
+ if(hs.length>=3&&ls.length>=3){
+  const H=lineFit(hs.slice(-3)),L=lineFit(ls.slice(-3)),lastI=candles.length-1;
+  if(H&&L){const hv=Math.abs(H.at(lastI)-H.at(hs.at(-3).i)),lv=Math.abs(L.at(lastI)-L.at(ls.at(-3).i));const sameTop=Math.abs(hs.at(-1).p-hs.at(-2).p)<A*.8,sameLow=Math.abs(ls.at(-1).p-ls.at(-2).p)<A*.8;
+   if(sameTop&&ls.at(-1).p>ls.at(-2).p)add('ASCENDING TRIANGLE','bull',78,{H,L,breakout:price>H.at(lastI)},[{H,L}]);
+   else if(sameLow&&hs.at(-1).p<hs.at(-2).p)add('DESCENDING TRIANGLE','bear',78,{H,L,breakdown:price<L.at(lastI)},[{H,L}]);
+   else if(H.m<0&&L.m>0){
+    const upper=H.at(lastI),lower=L.at(lastI);
+    const dir=price>upper?'bull':price<lower?'bear':'neutral';
+    const score=dir==='neutral'?72:90;
+    add('SYMMETRICAL TRIANGLE',dir,score,{H,L,upper,lower,breakout:dir==='bull',breakdown:dir==='bear'},[{H,L}]);
+   }
+   else if(H.m>0&&L.m>0&&H.m<L.m)add('RISING WEDGE','bear',70,{H,L,breakdown:price<L.at(lastI)},[{H,L}]);
+   else if(H.m<0&&L.m<0&&H.m<L.m)add('FALLING WEDGE','bull',70,{H,L,breakout:price>H.at(lastI)},[{H,L}]);
+  }
+ }
+ // Liquidity sweep
+ if(hs.length&&ls.length){let H=hs.at(-1),L=ls.at(-1),look=candles.slice(-4),sweepH=Math.max(...look.map(x=>x.h))>H.p&&price<H.p,sweepL=Math.min(...look.map(x=>x.l))<L.p&&price>L.p;if(sweepH)add('LIQUIDITY SWEEP','bear',84,{level:H.p,kind:'high'},[{level:H.p}]);else if(sweepL)add('LIQUIDITY SWEEP','bull',84,{level:L.p,kind:'low'},[{level:L.p}])}
+ if(!candidates.length)add('RANGE / COMPRESSION','neutral',55,{lo,hi},[{lo,hi}]);
+ candidates.sort((a,b)=>b.score-a.score);return candidates[0];
+}
+function renderPattern(p,t){
+ if(!p)return;
+ const col=p.dir==='bull'?'green':p.dir==='bear'?'red':'yellow';
+ $('patternName').textContent=(p.dir==='bull'?'🟢 ':p.dir==='bear'?'🔴 ':'🟡 ')+p.name;
+ $('patternName').className='patternTitle '+col;
+ const conf=p.score>=85?'CONFIRMED':p.score>=75?'CONFIRMING':'POTENTIAL';
+ $('patternStatus').textContent=`${conf} • Pattern confidence ${p.score}%`;
+ $('patternDef').textContent=p.definition;
+ let bits=[];if(p.meta?.volume)bits.push(`Volume ${p.meta.volume.toFixed(2)}× avg`);if(p.meta?.breakout)bits.push('Breakout confirmed');if(p.meta?.breakdown)bits.push('Breakdown confirmed');if(p.meta?.reaction)bits.push('Reaction $'+fmt(p.meta.reaction,0));if(p.meta?.level)bits.push('Sweep level $'+fmt(p.meta.level,0));
+ $('patternMetrics').innerHTML=bits.map(x=>`<span class="metric">${esc(x)}</span>`).join('');
+ const impact=p.dir==='bull'?'BULLISH BOOST':p.dir==='bear'?'BEARISH BOOST':'NEUTRAL';
+ $('patternImpact').textContent=impact;$('patternImpact').className='signal '+col;
+ $('patternWhy').textContent=`${p.definition} Current model impact: ${impact}.`;
+ return p;
+}
+
+function render(t,p){
+ const b=t.b,v=t.v;
+ $('vwap').textContent='$'+fmt(b.vw);$('m36').textContent='$'+fmt(b.m36);$('m08').textContent='$'+fmt(b.m08);$('p08').textContent='$'+fmt(b.p08);$('p36').textContent='$'+fmt(b.p36);
+ $('vwapRegime').textContent=t.regime;$('vwapRegime').className='signal '+(t.regime.includes('UPPER')||t.regime==='ABOVE VWAP'?'green':t.regime.includes('LOWER')||t.regime==='BELOW VWAP'?'red':'yellow');
+ $('vwapReason').textContent=`BTC is ${fmt(price-b.vw,0)} from VWAP. ${pct(v.ratio-1,0)} volume change vs the recent average. 0.8σ is treated as the normal deviation zone; 3.6σ is an extreme extension zone.`;
+ $('volRatio').textContent=v.ratio.toFixed(2)+'×';$('volSub').textContent=`current ${v.cur.toLocaleString()} • avg ${Math.round(v.avg).toLocaleString()} • Δ ${pct(v.delta,0)}`;
+ $('atr').textContent='$'+fmt(atr());$('trend').textContent=t.e9>t.e21&&t.e21>t.e50?'BULLISH':t.e9<t.e21&&t.e21<t.e50?'BEARISH':'MIXED';$('trend').className='signal '+($('trend').textContent==='BULLISH'?'green':$('trend').textContent==='BEARISH'?'red':'yellow');
+ $('rsi').textContent=t.r.toFixed(1);$('structure').textContent=t.s;$('structure').className='signal '+(t.s==='BULLISH'?'green':t.s==='BEARISH'?'red':'yellow');$('btcVolume').textContent=v.ratio.toFixed(2)+'× avg';$('regimeScore').textContent=t.z.toFixed(2);
+ renderPattern(p,t);draw(t,p);
+}
+let selectedCandleTs=null;
+let hoveredCandleIndex=null;
+let chartView=null;
+let chartZoom=1;
+const CHART_MAX_CANDLES=240;
+const CHART_MIN_CANDLES=30;
+
+function candleFromPointer(clientX){
+ const c=$('chart');
+ if(!chartView||!c) return null;
+ const rect=c.getBoundingClientRect();
+ const px=clamp(clientX-rect.left,chartView.L,chartView.w-chartView.R);
+ const local=Math.round((px-chartView.L)/Math.max(1,chartView.PW)*(chartView.data.length-1));
+ return {local,candle:chartView.data[local],x:chartView.x(local),rect};
+}
+function showCandleDetails(k,local){
+ if(!k)return;
+ const prev=local>0?chartView.data[local-1]:null;
+ const move=prev?(k.c/prev.c-1)*100:0;
+ const range=k.h-k.l,body=Math.abs(k.c-k.o);
+ const time=new Date(k.t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+ $('candleDetails').innerHTML=`
+  <div class="candleSelected">Selected candle • ${time}</div>
+  <div class="candleGrid">
+   <div class="candleMetric"><div class="label">Open</div><div class="value">$${fmt(k.o,2)}</div></div>
+   <div class="candleMetric"><div class="label">High</div><div class="value">$${fmt(k.h,2)}</div></div>
+   <div class="candleMetric"><div class="label">Low</div><div class="value">$${fmt(k.l,2)}</div></div>
+   <div class="candleMetric"><div class="label">Close</div><div class="value">$${fmt(k.c,2)}</div></div>
+   <div class="candleMetric"><div class="label">Range</div><div class="value">$${fmt(range,2)}</div></div>
+   <div class="candleMetric"><div class="label">Volume</div><div class="value">${Number(k.v||0).toLocaleString()}</div></div>
+  </div>
+  <div class="mini" style="margin-top:7px">${k.c>=k.o?'Bullish':'Bearish'} candle • body $${fmt(body,2)} • ${move>=0?'+':''}${move.toFixed(2)}% vs previous close</div>`;
+}
+function drawSelectedCandle(ctx){
+ if(!chartView||selectedCandleTs==null)return;
+ const local=chartView.data.findIndex(k=>k.t===selectedCandleTs);
+ if(local<0)return;
+ const k=chartView.data[local],xx=chartView.x(local);
+ ctx.save();
+ ctx.strokeStyle='#ffffff';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+ ctx.beginPath();ctx.moveTo(xx,chartView.T);ctx.lineTo(xx,chartView.h-chartView.B);ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle='rgba(255,255,255,.14)';
+ ctx.fillRect(Math.max(chartView.L,xx-chartView.cw*.9),chartView.T,Math.max(2,chartView.cw*1.8),chartView.PH);
+ ctx.strokeStyle='#ffffff';ctx.lineWidth=2;
+ const top=chartView.y(k.h),bot=chartView.y(k.l);ctx.strokeRect(Math.max(chartView.L,xx-chartView.cw/2-2),top,chartView.cw+4,Math.max(4,bot-top));
+ ctx.fillStyle='#ffffff';ctx.font='bold 10px Arial';
+ const label=`${new Date(k.t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}  $${fmt(k.c,2)}`;
+ const tw=ctx.measureText(label).width+14,lx=clamp(xx-tw/2,chartView.L,chartView.w-chartView.R-tw),ly=chartView.T+4;
+ ctx.fillStyle='rgba(10,15,22,.94)';ctx.fillRect(lx,ly,tw,18);ctx.fillStyle='#fff';ctx.fillText(label,lx+7,ly+12);
+ ctx.restore();
+}
+function updateCandleHover(clientX){
+ const hit=candleFromPointer(clientX);
+ if(!hit)return;
+ hoveredCandleIndex=hit.local;
+ drawCurrent();
+}
+function drawCurrent(){
+ if(!candles.length)return;
+ try{const t=tech(),p=detectPatterns();draw(t,p)}catch(_){}
+}
+function selectCandle(clientX){
+ const hit=candleFromPointer(clientX);
+ if(!hit?.candle)return;
+ selectedCandleTs=hit.candle.t;
+ showCandleDetails(hit.candle,hit.local);
+ $('chartHint')?.classList.add('hidden');
+ drawCurrent();
+}
+function srBoxGeometry(q,side,idx){
+ const c=$('chart');
+ const barW=132,barH=34;
+ const defaultX=c?.clientWidth?c.clientWidth-(chartView?.R||15)-barW-4:0;
+ const key=side+':'+idx;
+ const pos=srBoxPos[key]||{x:defaultX,y:0};
+ const yy=chartView.y(q.level);
+ const bx=clamp(pos.x,chartView.L+4,chartView.w-chartView.R-barW);
+ const by=clamp(pos.y||yy-barH/2,chartView.T,chartView.h-chartView.B-barH);
+ return {x:bx,y:by,w:barW,h:barH,lineY:yy,key};
+}
+function patternBoxGeometry(){
+ const w=205,h=82;
+ const defaultX=Math.max(chartView.L+8,chartView.w-chartView.R-w-8);
+ const x=clamp(patternBoxPos.x==null?defaultX:patternBoxPos.x,chartView.L+8,chartView.w-chartView.R-w);
+ const y=clamp(patternBoxPos.y==null?32:patternBoxPos.y,chartView.T,chartView.h-chartView.B-h);
+ return {x,y,w,h};
+}
+function hitPatternBox(clientX,clientY){
+ if(!chartView||!candles.length)return null;
+ const c=$('chart'),r=c.getBoundingClientRect(),px=clientX-r.left,py=clientY-r.top;
+ const g=patternBoxGeometry();
+ if(px>=g.x&&px<=g.x+g.w&&py>=g.y&&py<=g.y+g.h)return g;
+ return null;
+}
+function startPatternDrag(e){
+ const hit=hitPatternBox(e.clientX,e.clientY);if(!hit)return false;
+ draggingPattern=true;patternDragStartX=e.clientX;patternDragStartY=e.clientY;patternDragBoxX=hit.x;patternDragBoxY=hit.y;
+ const c=$('chart');c.style.cursor='grabbing';c.setPointerCapture?.(e.pointerId);e.preventDefault();return true;
+}
+function movePatternDrag(e){
+ if(!draggingPattern||!chartView)return;
+ const g=patternBoxGeometry(),dx=e.clientX-patternDragStartX,dy=e.clientY-patternDragStartY;
+ patternBoxPos.x=clamp(patternDragBoxX+dx,chartView.L+8,chartView.w-chartView.R-g.w);
+ patternBoxPos.y=clamp(patternDragBoxY+dy,chartView.T,chartView.h-chartView.B-g.h);
+ drawCurrent();
+}
+function endPatternDrag(e){
+ if(!draggingPattern)return;
+ draggingPattern=false;$('chart').style.cursor='';
+ try{$('chart').releasePointerCapture?.(e.pointerId)}catch(_){}
+}
+
+function initChartInteractions(){
+ const c=$('chart');if(!c||c.dataset.interactive)return;c.dataset.interactive='1';
+ c.addEventListener('pointermove',e=>updateCandleHover(e.clientX));
+ c.addEventListener('pointerleave',()=>{hoveredCandleIndex=null;drawCurrent()});
+ c.addEventListener('pointerup',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;selectCandle(e.clientX)});
+ c.addEventListener('click',e=>{if(e.detail===0)selectCandle(e.clientX)});
+}
+
+
+function previousSessionOHLC(){
+ const now=new Date(),todayStart=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate());
+ let rows=candles.filter(k=>k.t<todayStart);
+ if(rows.length<12){
+  const cut=(candles.at(-1)?.t||Date.now())-86400000;
+  rows=candles.filter(k=>k.t>=cut&&k.t<(candles.at(-1)?.t||Date.now()));
+ }
+ if(rows.length<3)return null;
+ return {h:Math.max(...rows.map(k=>k.h)),l:Math.min(...rows.map(k=>k.l)),c:rows.at(-1).c};
+}
+function classicPivots(){
+ const q=previousSessionOHLC(); if(!q)return null;
+ const pp=(q.h+q.l+q.c)/3,range=q.h-q.l;
+ return {pp,r1:2*pp-q.l,r2:pp+range,r3:q.h+2*(pp-q.l),s1:2*pp-q.h,s2:pp-range,s3:q.l-2*(q.h-pp),high:q.h,low:q.l,close:q.c};
+}
+function fibonacciPivots(){
+ const q=previousSessionOHLC(); if(!q)return null;
+ const pp=(q.h+q.l+q.c)/3,r=q.h-q.l;
+ return {pp,r1:pp+.382*r,r2:pp+.618*r,r3:pp+1*r,s1:pp-.382*r,s2:pp-.618*r,s3:pp-1*r};
+}
+let srMemory={support:[],resistance:[]};
+let srLastCandleTs=null;
+let srMemoryTf=null;
+
+function resetSRMemory(){
+  srMemory={support:[],resistance:[]};
+  srLastCandleTs=null;
+}
+
+function dynamicSR(data,t){
+ const n=data.length;
+ if(n<15)return {support:[],resistance:[],pivots:[],fibPivots:[]};
+
+ const currentTf=Number($('tf')?.value||5);
+ if(srMemoryTf!==currentTf){resetSRMemory();srMemoryTf=currentTf}
+
+ const atrVal=Math.max(Number(t?.atr)||atr(14),price*.0005);
+ const range=Math.max(...data.map(k=>k.h))-Math.min(...data.map(k=>k.l));
+ const tol=Math.max(atrVal*.22,range*.012,price*.00035);
+
+ function findLevel(side,level){
+   return srMemory[side].find(q=>Math.abs(q.level-level)<=tol);
+ }
+ function addOrTouch(side,level,ts,source='SWING',isPivot=false){
+   if(!Number.isFinite(level))return null;
+   const arr=srMemory[side];
+   let q=findLevel(side,level);
+   if(!q){
+     q={level,touches:0,pivot:false,lastTouchTs:null,source,firstTs:ts||Date.now(),strength:35};
+     arr.push(q);
+   }
+   // A given candle may only count once as a touch.
+   if(ts && q.lastTouchTs!==ts){
+     q.touches++;
+     q.lastTouchTs=ts;
+     // Let repeatedly tested levels migrate slightly toward the actual test.
+     q.level=q.level+(level-q.level)*.18;
+   }
+   if(isPivot)q.pivot=true;
+   q.pivot=q.pivot||q.touches>=3;
+   q.source=source||q.source;
+   q.strength=clamp(Math.round(34+q.touches*17+(q.pivot?18:0)),20,99);
+   return q;
+ }
+
+ // Register confirmed swing points into persistent levels.
+ const pivH=[],pivL=[];
+ for(let i=2;i<n-2;i++){
+   const k=data[i];
+   if(k.h>=data[i-1].h&&k.h>=data[i-2].h&&k.h>=data[i+1].h&&k.h>=data[i+2].h)
+     pivH.push({p:k.h,i,v:k.v||0,t:k.t});
+   if(k.l<=data[i-1].l&&k.l<=data[i-2].l&&k.l<=data[i+1].l&&k.l<=data[i+2].l)
+     pivL.push({p:k.l,i,v:k.v||0,t:k.t});
+ }
+ for(const q of pivL)addOrTouch('support',q.p,q.t,'SWING LOW',true);
+ for(const q of pivH)addOrTouch('resistance',q.p,q.t,'SWING HIGH',true);
+
+ // Count a live retest once per candle. This means a level's touch count
+ // increases when price comes back to it instead of resetting on every redraw.
+ const latest=data.at(-1);
+ if(latest && srLastCandleTs!==latest.t){
+   srLastCandleTs=latest.t;
+   for(const q of srMemory.support){
+     if(latest.l<=q.level+tol && latest.h>=q.level-tol && q.level<=(latest.h+tol)){
+       addOrTouch('support',q.level,latest.t,'RETEST');
+     }
+   }
+   for(const q of srMemory.resistance){
+     if(latest.h>=q.level-tol && latest.l<=q.level+tol && q.level>=(latest.l-tol)){
+       addOrTouch('resistance',q.level,latest.t,'RETEST');
+     }
+   }
+ }
+
+ // Also react to the live price between candle refreshes, but only once for
+ // the current candle. This keeps S/R responsive without runaway touch counts.
+ if(latest){
+   for(const q of srMemory.support){
+     if(Math.abs(price-q.level)<=tol*.72 && q.lastTouchTs!==latest.t)
+       addOrTouch('support',price,latest.t,'LIVE RETEST');
+   }
+   for(const q of srMemory.resistance){
+     if(Math.abs(price-q.level)<=tol*.72 && q.lastTouchTs!==latest.t)
+       addOrTouch('resistance',price,latest.t,'LIVE RETEST');
+   }
+ }
+
+ // Keep memory bounded and remove levels that are far outside the active range.
+ const keepMin=Math.min(...data.map(k=>k.l))-atrVal*2;
+ const keepMax=Math.max(...data.map(k=>k.h))+atrVal*2;
+ srMemory.support=srMemory.support.filter(q=>q.level>=keepMin).slice(-30);
+ srMemory.resistance=srMemory.resistance.filter(q=>q.level<=keepMax).slice(-30);
+
+ const recent=data.slice(-24);
+ const recentLow=Math.min(...recent.map(k=>k.l)),recentHigh=Math.max(...recent.map(k=>k.h));
+ addOrTouch('support',recentLow,recent.at(-1)?.t,'24C LOW');
+ addOrTouch('resistance',recentHigh,recent.at(-1)?.t,'24C HIGH');
+
+ const cp=classicPivots(),fp=fibonacciPivots();
+ if(cp){
+   addOrTouch('support',cp.s1,cp.close?Date.now():0,'PD S1');
+   addOrTouch('resistance',cp.r1,cp.close?Date.now():0,'PD R1');
+   if(cp.s2<price)addOrTouch('support',cp.s2,0,'PD S2');
+   if(cp.r2>price)addOrTouch('resistance',cp.r2,0,'PD R2');
+ }
+
+ function prepare(side){
+   return srMemory[side]
+    .map(q=>{
+      const distance=Math.abs(q.level-price);
+      const proximity=clamp(1-distance/Math.max(range,atrVal*8),.15,1);
+      const strength=clamp(Math.round(q.strength+proximity*10),20,99);
+      return {...q,distance,strength};
+    })
+    .filter(q=>side==='support'?q.level<price+tol:q.level>price-tol)
+    .sort((a,b)=>a.distance-b.distance||b.strength-a.strength);
+ }
+ function dedupe(levels){
+   const out=[];
+   for(const q of levels){
+     if(!out.some(x=>Math.abs(x.level-q.level)<=tol*.7))out.push(q);
+   }
+   return out.slice(0,3);
+ }
+ return {support:dedupe(prepare('support')),resistance:dedupe(prepare('resistance')),pivots:cp,fibPivots:fp,tolerance:tol};
+}
+function drawPivotLines(ctx,piv,y,L,R,w){
+ if(!piv)return;
+ const levels=[['PP',piv.pp,'#ffd166'],['R1',piv.r1,'#ff8a8a'],['R2',piv.r2,'#ff6b6b'],['R3',piv.r3,'#ff4d5a'],['S1',piv.s1,'#72e6ad'],['S2',piv.s2,'#39d98a'],['S3',piv.s3,'#20c77a']];
+ levels.forEach(([name,val,col])=>{
+  if(!Number.isFinite(val)||val<chartView.mn||val>chartView.mx)return;
+  const yy=y(val);ctx.save();ctx.strokeStyle=col;ctx.lineWidth=name==='PP'?1.8:1;ctx.setLineDash(name==='PP'?[]:[7,5]);ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.font='bold 9px Arial';ctx.fillText(name+' $'+fmt(val,0),L+5,yy+10);ctx.restore();
+ });
+}
+
+function drawSRBars(ctx,sr,y,L,R,w){
+ const drawGroup=(levels,isSupport)=>{
+  levels.forEach((q,idx)=>{
+   const yy=y(q.level);
+   if(!Number.isFinite(yy))return;
+   ctx.save();
+   const col=isSupport?'#39d98a':'#ff5d6c';
+   ctx.strokeStyle=col;ctx.lineWidth=idx===0?2.8:1.7;ctx.setLineDash(idx===0?[]:[8,5]);
+   ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.setLineDash([]);
+   ctx.fillStyle='rgba(10,15,22,.90)';
+   const pivotTag=q.pivot?' • PIVOT':'';
+   const label=`${isSupport?'S':'R'}${idx+1} $${fmt(q.level,0)} • ${q.strength}%${pivotTag}`;
+   const tw=ctx.measureText(label).width+14;
+   const bx=isSupport?L+8:w-R-tw-8;
+   const by=clamp(yy-11,chartView.T,chartView.h-chartView.B-20);
+   ctx.fillRect(bx,by,tw,18);
+   ctx.strokeStyle=col;ctx.lineWidth=1;ctx.strokeRect(bx,by,tw,18);
+   ctx.fillStyle=col;ctx.font='bold 10px Arial';ctx.fillText(label,bx+7,by+12);
+   ctx.fillStyle='#9aa8b8';ctx.font='9px Arial';
+   const source=q.source?` • ${q.source}`:'';
+   ctx.fillText(`${q.touches} touch${q.touches===1?'':'es'}${source}`,bx+7,by+29);
+   ctx.restore();
+  });
+ };
+ drawGroup(sr.support,true);drawGroup(sr.resistance,false);
+}
+
+function draw(t,p){
+ const c=$('chart'),ctx=c.getContext('2d'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
+ const visibleCount=clamp(Math.round(120/chartZoom),CHART_MIN_CANDLES,CHART_MAX_CANDLES);
+ const data=candles.slice(-visibleCount),vals=data.flatMap(x=>[x.h,x.l]);if(!vals.length)return;
+ let mn=Math.min(...vals),mx=Math.max(...vals);[t.b.m36,t.b.m08,t.b.vw,t.b.p08,t.b.p36].forEach(x=>{mn=Math.min(mn,x);mx=Math.max(mx,x)});
+ const pad=(mx-mn)*.08||1;mn-=pad;mx+=pad;const L=62,R=15,T=20,B=28,PW=w-L-R,PH=h-T-B,x=i=>L+i/Math.max(1,data.length-1)*PW,y=v=>T+(mx-v)/(mx-mn)*PH;
+ chartView={data,L,R,T,B,PW,PH,w,h,x,y,cw:Math.max(2,Math.min(8,PW/data.length*.7)),mn,mx};
+ ctx.font='10px Arial';ctx.strokeStyle='#263444';ctx.fillStyle='#8e9bab';for(let i=0;i<6;i++){let yy=T+i*PH/5;ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.fillText('$'+fmt(mx-(mx-mn)*i/5,0),5,yy+4)}
+ const pivotInfo=classicPivots(); if(pivotInfo){ctx.fillStyle='#ffd166';ctx.font='bold 9px Arial';ctx.fillText('DAILY PIVOTS',L+70,T+9)}
+ const bands=[['-3.6σ',t.b.m36,'#ff5d6c'],['-0.8σ',t.b.m08,'#ff5d6c'],['VWAP',t.b.vw,'#55c7ff'],['+0.8σ',t.b.p08,'#39d98a'],['+3.6σ',t.b.p36,'#39d98a']];
+ bands.forEach(([name,val,col])=>{ctx.strokeStyle=col;ctx.setLineDash(name==='VWAP'?[]:[5,5]);ctx.beginPath();ctx.moveTo(L,y(val));ctx.lineTo(w-R,y(val));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.fillText(name+' $'+fmt(val,0),L+5,y(val)-4)});
+ const sr=dynamicSR(data,t); drawPivotLines(ctx,sr.pivots,y,L,R,w); drawSRBars(ctx,sr,y,L,R,w);
+ const cw=chartView.cw;data.forEach((k,i)=>{let xx=x(i),up=k.c>=k.o;ctx.strokeStyle=up?'#39d98a':'#ff5d6c';ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(xx,y(k.h));ctx.lineTo(xx,y(k.l));ctx.stroke();let top=Math.min(y(k.o),y(k.c)),bh=Math.max(1,Math.abs(y(k.c)-y(k.o)));ctx.fillRect(xx-cw/2,top,cw,bh)});
+ ctx.strokeStyle='#55c7ff';ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(L,y(price));ctx.lineTo(w-R,y(price));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#55c7ff';ctx.font='bold 11px Arial';ctx.fillText('LIVE $'+fmt(price,2),L+5,Math.max(14,y(price)-7));
+ // Hover guide
+ if(hoveredCandleIndex!=null&&chartView.data[hoveredCandleIndex]){
+   const hx=x(hoveredCandleIndex);ctx.save();ctx.strokeStyle='rgba(255,255,255,.28)';ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(hx,T);ctx.lineTo(hx,h-B);ctx.stroke();ctx.restore();
+ }
+ // Selected candle
+ drawSelectedCandle(ctx);
+ // Pattern drawing
+ if(p)drawPattern(ctx,p,x,y,L,R);
+}
+function drawPattern(ctx,p,x,y,L,R){
+ ctx.save();ctx.lineWidth=2;ctx.setLineDash([]);
+ const col=p.dir==='bull'?'#39d98a':p.dir==='bear'?'#ff5d6c':'#ffd166';ctx.strokeStyle=col;ctx.fillStyle=col;
+ const windowStart=Math.max(0,candles.length-chartView.data.length),last=candles.length-1;
+ const local=i=>i-windowStart;
+ const inView=i=>i>=windowStart&&i<=last;
+ const right=x(Math.max(0,last-windowStart));
+ if(p.meta?.fitH&&p.meta?.fitL){
+  for(const fit of [p.meta.fitH,p.meta.fitL]){
+   if(inView(fit.i0)||inView(fit.i1)){
+    const a=Math.max(fit.i0,windowStart),b=Math.min(fit.i1,last);
+    ctx.beginPath();ctx.moveTo(x(local(a)),y(fit.at(a)));ctx.lineTo(x(local(b)),y(fit.at(b)));ctx.stroke();
+   }
+  }
+ }
+ if(p.name.includes('DOUBLE')){
+  const a=p.meta.a,b=p.meta.b,r=p.meta.reaction;
+  ctx.setLineDash([4,4]);
+  if(inView(a.i)&&inView(b.i)){ctx.beginPath();ctx.moveTo(x(local(a.i)),y(a.p));ctx.lineTo(x(local(b.i)),y(b.p));ctx.stroke();}
+  ctx.beginPath();ctx.moveTo(L,y(r));ctx.lineTo(right,y(r));ctx.stroke();ctx.setLineDash([]);
+ }
+ if(p.name==='LIQUIDITY SWEEP'){
+  const q=p.meta.level;ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(L,y(q));ctx.lineTo(right,y(q));ctx.stroke();ctx.setLineDash([]);
+ }
+ if(p.name==='DOUBLE BOTTOM'||p.name==='DOUBLE TOP'){
+  const a=p.meta.a,b=p.meta.b,r=p.meta.reaction;
+  for(const q of [a,b]) if(inView(q.i)){
+   const xx=x(local(q.i)),yy=y(q.p);ctx.beginPath();ctx.arc(xx,yy,5,0,Math.PI*2);ctx.fill();
+   ctx.font='bold 9px Arial';ctx.fillText(p.name==='DOUBLE BOTTOM'?'LOW':'HIGH',xx+7,yy-6);
+  }
+  if(Number.isFinite(r)){ctx.font='bold 9px Arial';ctx.fillText('NECKLINE $'+fmt(r,0),L+5,y(r)-6);}
+ }
+ const labelW=205,labelH=82;
+ const defaultX=clamp(right-labelW-8,L+8,right-labelW);
+ const labelX=clamp(patternBoxPos.x==null?defaultX:patternBoxPos.x,L+8,right-labelW);
+ const labelY=clamp(patternBoxPos.y==null?32:patternBoxPos.y,T,h-B-labelH);
+ patternBoxPos.x=labelX;patternBoxPos.y=labelY;
+ ctx.fillStyle='rgba(16,23,32,.96)';ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.fillRect(labelX,labelY,labelW,labelH);ctx.strokeRect(labelX,labelY,labelW,labelH);
+ ctx.fillStyle=col;ctx.font='bold 12px Arial';ctx.fillText(p.name+' • '+p.score+'%',labelX+8,labelY+16);
+ ctx.fillStyle='#edf3fa';ctx.font='10px Arial';
+ const words=p.definition.split(' ');let line='',yy=labelY+31;
+ for(const word of words){if((line+' '+word).length>34){ctx.fillText(line,labelX+8,yy);yy+=13;line=word;if(yy>labelY+69)break}else line+=(line?' ':'')+word}
+ if(line&&yy<=labelY+69)ctx.fillText(line,labelX+8,yy);
+ ctx.restore();
+}
+
+async function fetchKrakenCandles(interval){
+  const url=`${KRAKEN}/OHLC?pair=XBTUSD&interval=${interval}`;
+  let r;
+  try{r=await fetchWithTimeout(url,10000)}
+  catch(e){throw Error(e?.name==='AbortError'?'Kraken request timed out after 10s':'Kraken network/CORS error')}
+  if(!r.ok)throw Error(`Kraken HTTP ${r.status}`);
+  const x=await r.json();
+  if(x?.error?.length)throw Error(`Kraken ${x.error.join(', ')}`);
+  const result=x?.result||{};
+  const key=Object.keys(result).find(k=>k!=='last');
+  const raw=key?result[key]:[];
+  if(!Array.isArray(raw)||raw.length<20)throw Error('Kraken returned insufficient BTC candle data');
+  return raw.slice(-720).map(r=>({
+    t:Number(r[0])*1000,o:Number(r[1]),h:Number(r[2]),l:Number(r[3]),c:Number(r[4]),v:Number(r[6]||0)
+  })).filter(r=>[r.t,r.o,r.h,r.l,r.c].every(Number.isFinite));
+}
+
+async function fetchCoinbaseCandles(interval){
+  // Reliable browser-side fallback if Kraken blocks the GitHub Pages origin.
+  const seconds=Math.max(60,interval*60);
+  const url=`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=${seconds}`;
+  const r=await fetchWithTimeout(url,10000);
+  if(!r.ok)throw Error(`Coinbase HTTP ${r.status}`);
+  const raw=await r.json();
+  if(!Array.isArray(raw)||raw.length<20)throw Error('Coinbase returned insufficient BTC candle data');
+  return raw.slice(0,720).map(r=>({
+    t:Number(r[0])*1000,l:Number(r[1]),h:Number(r[2]),o:Number(r[3]),c:Number(r[4]),v:Number(r[5]||0)
+  })).filter(r=>[r.t,r.o,r.h,r.l,r.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
+}
+
+async function loadBTC(){
+  const interval=Math.max(1,Number($('tf').value)||5);
+  let source='Kraken';
+  try{
+    candles=await fetchKrakenCandles(interval);
+  }catch(krakenErr){
+    try{
+      candles=await fetchCoinbaseCandles(interval);
+      source='Coinbase fallback';
+    }catch(coinbaseErr){
+      throw Error(`Kraken unavailable; Coinbase fallback failed: ${coinbaseErr.message}`);
+    }
+  }
+  if(!candles.length)throw Error('No BTC candles returned');
+  price=candles.at(-1).c;
+  $('price').textContent='$'+fmt(price,2);
+  clearErr();
+  setStatus(true,`Live • ${source}`);
+  const first=candles[Math.max(0,candles.length-1-Math.round(1440/interval))]?.c||price;
+  $('change').textContent=pct(price/first-1,2);
+  $('change').className='big '+(price>=first?'green':'red');
+  const vi=volInfo();
+  $('volRatio').textContent=vi.ratio.toFixed(2)+'×';
+  $('volSub').textContent=`current ${Math.round(vi.cur).toLocaleString()} • avg ${Math.round(vi.avg).toLocaleString()}`;
+  $('atr').textContent='$'+fmt(atr(),2);
+}
+
+async function calculate(){
+ if(!candles.length||!price)return;const t=tech(),p=detectPatterns();render(t,p);
+}
+function connect(){
+  // REST polling is used for the GitHub Pages build so a WebSocket failure can
+  // never prevent the dashboard from loading. Kraken remains live via polling.
+  setStatus(true,'Live • Kraken');
+}
+
+async function fetchOrderBook(ticker){
+ try{return await getJson(`/markets/${encodeURIComponent(ticker)}/orderbook?depth=10`)}catch(e){return null}
+}
+async function fetchTrades(ticker){
+ try{const x=await getJson(`/markets/trades?ticker=${encodeURIComponent(ticker)}&limit=50`);return x.trades||[]}catch(e){return[]}
+}
+async function loadAll(){
+  clearErr();
+  setStatus(false,'Loading BTC…');
+  try{
+    await loadBTC();
+    await calculate();
+  }catch(e){
+    if(candles.length&&price){setStatus(true,'Live • data cached');clearErr()}
+    else{setStatus(false,'BTC feed error');err('BTC data error: '+e.message)}
+  }
+}
+$('refresh').onclick=loadAll;$('tf').onchange=()=>{resetSRMemory();srMemoryTf=null;loadAll()};
+initChartInteractions();
+$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
+let lastCandleRefresh=0;
+async function refreshLivePrice(){
+ if(paused||!candles.length)return;
+ try{
+  const r=await fetchWithTimeout('https://api.exchange.coinbase.com/products/BTC-USD/ticker',4000);
+  if(!r.ok)throw Error('Coinbase ticker HTTP '+r.status);
+  const q=await r.json();const px=Number(q?.price);
+  if(!Number.isFinite(px))throw Error('Invalid Coinbase ticker');
+  price=px;$('price').textContent='$'+fmt(price,2);setStatus(true,'Live • Coinbase ticker');clearErr();
+  drawCurrent();
+ }catch(_){/* Keep the last good live price. Candle refresh handles recovery. */}
+}
+setInterval(refreshLivePrice,2000);
+setInterval(async()=>{
+ if(paused)return;
+ const now=Date.now();if(now-lastCandleRefresh<14000)return;lastCandleRefresh=now;
+ try{await loadBTC();await calculate()}catch(e){
+  if(candles.length&&price){setStatus(true,'Live • data cached');clearErr()}
+  else{setStatus(false,'BTC feed error');err('BTC data error: '+e.message)}
+ }
+},3000);
+window.addEventListener('resize',()=>candles.length&&calculate());
+
+function setChartZoom(next){
+  chartZoom=clamp(next,.5,4);
+  const count=clamp(Math.round(120/chartZoom),CHART_MIN_CANDLES,CHART_MAX_CANDLES);
+  $('chartZoomLabel').textContent=`${count} candles • ${chartZoom.toFixed(2)}×`;
+  drawCurrent();
+}
+$('chartZoomIn').onclick=()=>setChartZoom(chartZoom*1.25);
+$('chartZoomOut').onclick=()=>setChartZoom(chartZoom/1.25);
+$('chartZoomReset').onclick=()=>setChartZoom(1);
+$('chart').addEventListener('wheel',e=>{
+  e.preventDefault();
+  setChartZoom(chartZoom*(e.deltaY<0?1.18:.85));
+},{passive:false});
+setChartZoom(1);
+
+window.addEventListener('error',e=>{if(e?.message){err('Engine error: '+e.message)}});
+window.addEventListener('unhandledrejection',e=>{const m=e?.reason?.message||String(e?.reason||'Unknown promise error');err('Engine error: '+m)});
+loadAll();
+
+// V8.5: support/resistance is price-adaptive and line-only; it recalculates on every live redraw.
+</script>
+</body>
+</html>
