@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JB BTC Edge V8.0 • Live Kalshi Microstructure Sniper</title>
+<title>JB BTC Edge V8.1 • Live Kalshi Microstructure Sniper</title>
 <style>
 :root{--bg:#090d12;--p:#101720;--p2:#151f2a;--t:#edf3fa;--m:#8e9bab;--l:#263444;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff;--o:#ff9f43}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
@@ -54,7 +54,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </head>
 <body>
 <header>
-<div><h1>JB BTC Edge V8.0 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
+<div><h1>JB BTC Edge V8.1 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
 <div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
 </header>
 <main>
@@ -172,7 +172,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </div>
 
 <div class="section"><div class="card"><div class="label">Data Notes</div><div class="note">
-BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V8.0 adds a rolling order-book depth/imbalance history and interactive candle inspection, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled. GitHub Pages cannot bypass Kalshi browser CORS, so Kalshi reads use direct public API requests first and a read-only CORS relay fallback when the browser blocks them. This is still an analytical model, not the official Kalshi probability or settlement feed.
+BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V8.1 adds a rolling order-book depth/imbalance history and interactive candle inspection, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled. GitHub Pages cannot bypass Kalshi browser CORS, so Kalshi reads use direct public API requests first and a read-only CORS relay fallback when the browser blocks them. This is still an analytical model, not the official Kalshi probability or settlement feed.
 </div></div></div>
 </main>
 
@@ -186,6 +186,14 @@ const KBASES=[
 let KBASE=KBASES[0].base;
 let kalshiTransport='—';
 let kalshiLastError='';
+// Kalshi is rate-limited upstream, so keep a short browser-side cache and
+// back off automatically after HTTP 429 responses. Cached data can still be
+// used while the upstream limit cools down.
+const kalshiCache=new Map();
+let kalshiBackoffUntil=0;
+let kalshiBackoffMs=0;
+const KALSHI_CACHE_TTL=20000;
+const KALSHI_STALE_TTL=120000;
 const KRAKEN='https://api.kraken.com/0/public';
 const WS='wss://ws.kraken.com/v2';
 // GitHub Pages is static, so it cannot act as a server-side CORS proxy.
@@ -199,38 +207,86 @@ async function fetchWithTimeout(url,ms=9000){
   finally{clearTimeout(timer)}
 }
 async function readJsonResponse(r,label){
-  if(!r.ok)throw Error(`${label} HTTP ${r.status}`);
+  if(!r.ok){
+    const e=Error(`${label} HTTP ${r.status}`);
+    e.status=r.status;
+    const retry=Number(r.headers.get('retry-after'));
+    e.retryAfter=Number.isFinite(retry)&&retry>0?retry:0;
+    throw e;
+  }
   const text=await r.text();
   try{return JSON.parse(text)}catch(_){throw Error(`${label} non-JSON response`)}
 }
-function kalshiUrl(path,base){
-  const clean=String(path).startsWith('/')?String(path):'/'+path;
-  return String(base).replace(/\/$/,'') + (String(base).includes('trade-api/v2') ? clean : '/trade-api/v2'+clean);
+function kalshiCacheKey(path){
+  const p=String(path).replace(/^\/+/, '/');
+  return p.replace(/([?&])cursor=[^&]*/,'$1cursor=CURSOR');
+}
+function getCachedKalshi(path,allowStale=false){
+  const hit=kalshiCache.get(kalshiCacheKey(path));
+  if(!hit)return null;
+  const age=Date.now()-hit.time;
+  if(age<=KALSHI_CACHE_TTL || (allowStale&&age<=KALSHI_STALE_TTL))return hit.data;
+  return null;
+}
+function setKalshiCache(path,data){kalshiCache.set(kalshiCacheKey(path),{time:Date.now(),data})}
+function noteKalshi429(e){
+  const serverSec=Number(e?.retryAfter||0);
+  kalshiBackoffMs=serverSec>0?serverSec*1000:Math.min(Math.max(kalshiBackoffMs*2,10000),60000);
+  if(!kalshiBackoffMs)kalshiBackoffMs=10000;
+  kalshiBackoffUntil=Date.now()+kalshiBackoffMs;
 }
 async function getJson(pathOrUrl){
   const path=String(pathOrUrl).startsWith('http')
     ?String(pathOrUrl).replace(/^https:\/\/[^/]+\/trade-api\/v2/,'')
     :String(pathOrUrl);
-  const directErrors=[];
+  const cached=getCachedKalshi(path);
+  if(cached)return cached;
 
-  // A user-deployed bridge is the reliable way to use Kalshi from a static
-  // GitHub Pages origin when Kalshi's API does not expose CORS to that origin.
-  if(KALSHI_BRIDGE){
-    try{
-      const data=await readJsonResponse(await fetchWithTimeout(kalshiUrl(path,KALSHI_BRIDGE)),`BRIDGE`);
-      KBASE=KBASES[1].base;kalshiTransport='BRIDGE';kalshiLastError='';
-      return data;
-    }catch(e){directErrors.push(`BRIDGE ${e?.message||'failed'}`)}
+  if(Date.now()<kalshiBackoffUntil){
+    const stale=getCachedKalshi(path,true);
+    if(stale)return stale;
+    throw Error(`Kalshi rate-limited; retrying in ${Math.ceil((kalshiBackoffUntil-Date.now())/1000)}s`);
   }
 
-  // Direct public API. Current Kalshi documentation lists public market-data
-  // endpoints as unauthenticated; the elections host is the primary host.
+  const directErrors=[];
+  const request=async(url,label)=>{
+    try{
+      const data=await readJsonResponse(await fetchWithTimeout(url),label);
+      setKalshiCache(path,data);
+      kalshiBackoffMs=0;kalshiBackoffUntil=0;kalshiLastError='';
+      return data;
+    }catch(e){
+      if(e?.status===429)noteKalshi429(e);
+      throw e;
+    }
+  };
+
+  if(KALSHI_BRIDGE){
+    try{
+      const data=await request(kalshiUrl(path,KALSHI_BRIDGE),'BRIDGE');
+      KBASE=KALSHI_BRIDGE;kalshiTransport='BRIDGE';
+      return data;
+    }catch(e){
+      directErrors.push(`BRIDGE ${e?.message||'failed'}`);
+      const stale=getCachedKalshi(path,true);
+      if(stale)return stale;
+      // A 429 from the bridge is an upstream Kalshi limit. Do not hammer a
+      // second Kalshi host immediately after it.
+      if(e?.status===429)throw Error(directErrors.join(' | '));
+    }
+  }
+
   for(const host of [KBASES[1],KBASES[0]]){
     try{
-      const data=await readJsonResponse(await fetchWithTimeout(kalshiUrl(path,host.base)),host.name);
-      KBASE=host.base;kalshiTransport=host.name;kalshiLastError='';
+      const data=await request(kalshiUrl(path,host.base),host.name);
+      KBASE=host.base;kalshiTransport=host.name;
       return data;
-    }catch(e){directErrors.push(`${host.name} ${e?.message||'network/CORS error'}`)}
+    }catch(e){
+      directErrors.push(`${host.name} ${e?.message||'network/CORS error'}`);
+      const stale=getCachedKalshi(path,true);
+      if(stale)return stale;
+      if(e?.status===429)break;
+    }
   }
   kalshiLastError=directErrors.join(' | ');
   throw Error(`Kalshi unavailable — ${kalshiLastError}`);
@@ -725,26 +781,16 @@ async function fetchTrades(ticker){
  try{const x=await getJson(`/markets/trades?ticker=${encodeURIComponent(ticker)}&limit=50`);return x.trades||[]}catch(e){return[]}
 }
 async function fetchKalshiMarkets(params=''){
-  const all=[]; let cursor='';
-  for(let page=0;page<5;page++){
-    const u=`/markets?limit=1000&status=open${params}${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
-    const x=await getJson(u);
-    all.push(...(x?.markets||[]));
-    cursor=x?.cursor||'';
-    if(!cursor||!(x?.markets||[]).length)break;
-  }
-  return all;
+  // Kept for compatibility, but no longer used for broad discovery because
+  // /markets?limit=1000 is unnecessarily expensive and prone to rate limits.
+  const u=`/markets?limit=100&status=open${params}`;
+  const x=await getJson(u);
+  return x?.markets||[];
 }
 async function fetchKalshiEvents(series){
-  const all=[]; let cursor='';
-  for(let page=0;page<5;page++){
-    const u=`/events?limit=200&series_ticker=${encodeURIComponent(series)}&status=open&with_nested_markets=true${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
-    const x=await getJson(u);
-    all.push(...(x?.events||[]));
-    cursor=x?.cursor||'';
-    if(!cursor||!(x?.events||[]).length)break;
-  }
-  return all;
+  const u=`/events?limit=50&series_ticker=${encodeURIComponent(series)}&status=open&with_nested_markets=true`;
+  const x=await getJson(u);
+  return x?.events||[];
 }
 function flattenKalshiEvents(events){
   const out=[];
@@ -763,7 +809,7 @@ function classifyBtcMarket(m){
   const s=String(m?.series_ticker||m?.event_ticker||m?.ticker||'').toUpperCase();
   const w=marketWindowMinutes(m);
   if(s.includes('BTC15M')||s.includes('BTC5M')||(Number.isFinite(w)&&w<=25))return '15M';
-  if((s==='KXBTC'||s.includes('BTC1H'))|| (Number.isFinite(w)&&w>=40&&w<=80))return '1H';
+  if(s.includes('BTCD')||s.includes('BTC1H')||s==='KXBTC'||(Number.isFinite(w)&&w>=40&&w<=80))return '1H';
   return 'BTC';
 }
 async function loadKalshi(){
@@ -771,32 +817,24 @@ async function loadKalshi(){
   let all=[];
   const errors=[];
 
-  // Primary discovery: the Markets endpoint. This avoids depending on a
-  // particular BTC event/series name and is the most direct live-market feed.
-  try{
-    const direct=await fetchKalshiMarkets('&mve_filter=exclude');
-    all.push(...direct.map(m=>({...m,series_ticker:m.series_ticker||String(m.event_ticker||m.ticker||'').split('-')[0]})));
-  }catch(e){errors.push('markets '+e.message)}
-
-  // Also query the known recurring BTC series as a secondary source.
-  for(const s of ['KXBTC15M','KXBTC','KXBTCD']){
+  // Only hit the recurring BTC series. This is dramatically lighter than
+  // downloading the entire open-market catalog on every refresh.
+  for(const s of ['KXBTC15M','KXBTCD']){
     try{
       const events=await fetchKalshiEvents(s);
       all.push(...flattenKalshiEvents(events));
     }catch(e){errors.push(s+' '+e.message)}
   }
 
-  // Broad event discovery is the recovery path when series names change.
-  // Pull a small page of open events and keep only BTC/Bitcoin crypto events.
-  try{
-    const x=await getJson('/events?limit=100&status=open&with_nested_markets=true');
-    for(const ev of (x?.events||[])){
-      const text=String(ev?.title||'')+' '+String(ev?.sub_title||'')+' '+String(ev?.event_ticker||'');
-      if(/\bBTC\b|BITCOIN/i.test(text)) all.push(...flattenKalshiEvents([ev]));
-    }
-  }catch(e){errors.push('broad events '+e.message)}
+  // Small compatibility fallback for environments where the hourly series is
+  // exposed under the legacy KXBTC series name.
+  if(!all.length){
+    try{
+      const events=await fetchKalshiEvents('KXBTC');
+      all.push(...flattenKalshiEvents(events));
+    }catch(e){errors.push('KXBTC '+e.message)}
+  }
 
-  // De-duplicate actual contract tickers.
   const map=new Map();
   for(const m of all){
     if(!m?.ticker)continue;
@@ -806,34 +844,32 @@ async function loadKalshi(){
   }
   all=[...map.values()];
 
-  // Keep only live contracts. A contract is usable if its close/expiration
-  // is still in the future; tolerate both open and initialized responses.
-  markets=all.filter(m=>{
+  const live=all.filter(m=>{
     const close=Date.parse(m?.close_time||m?.expiration_time||m?.latest_expiration_time||'')||0;
     const status=String(m?.status||'').toLowerCase();
     return close>now && (status==='open'||status==='initialized'||status==='unopened'||!status);
   });
 
   const groups={M15:[],H1:[],BTC:[]};
-  for(const m of markets){
+  for(const m of live){
     const k=classifyBtcMarket(m);
     if(k==='15M')groups.M15.push(m);
     else if(k==='1H')groups.H1.push(m);
     else groups.BTC.push(m);
   }
-
   const byClose=(a,b)=>(Date.parse(a.close_time||a.expiration_time||'')||Infinity)-(Date.parse(b.close_time||b.expiration_time||'')||Infinity);
-  groups.M15.sort(byClose); groups.H1.sort(byClose); groups.BTC.sort(byClose);
+  groups.M15.sort(byClose);groups.H1.sort(byClose);groups.BTC.sort(byClose);
 
-  // Prefer the nearest 15m and 1h contracts. Keep a few additional BTC
-  // contracts so the scanner can recover even if one feed is delayed.
-  const candidates=[...groups.M15.slice(0,4),...groups.H1.slice(0,4),...groups.BTC.slice(0,2)];
+  // Keep a small visible contract set. Only the two nearest contracts get
+  // order-book/trade polling; the remaining two are market-metadata only.
+  const candidates=[...groups.M15.slice(0,2),...groups.H1.slice(0,2),...groups.BTC.slice(0,1)].slice(0,5);
   markets=candidates;
-
-  await Promise.all(candidates.map(async m=>{
+  const microCandidates=candidates.slice(0,2);
+  await Promise.all(microCandidates.map(async m=>{
     try{
-      const [book,trades]=await Promise.all([fetchOrderBook(m.ticker),fetchTrades(m.ticker)]);
+      const book=await fetchOrderBook(m.ticker);
       if(book)m._book=book;
+      const trades=await fetchTrades(m.ticker);
       m._trades=trades||[];
     }catch(e){}
   }));
@@ -843,9 +879,11 @@ async function loadKalshi(){
   if(diag){
     if(markets.length){
       const first=markets[0]?.ticker||'';
-      diag.textContent=`Feed OK • ${markets.length} active BTC contracts • 15m ${groups.M15.length} • 1h ${groups.H1.length} • ${first}`;
+      const age=kalshiCache.size?' • cached/batched':' '; 
+      diag.textContent=`Feed OK • ${markets.length} active BTC contracts • 15m ${groups.M15.length} • 1h ${groups.H1.length} • ${first}${age}`;
     }else{
-      diag.textContent=KALSHI_BRIDGE?`Bridge failed: ${kalshiLastError||'no response'}`:`Browser/API access blocked: ${errors.length?errors.join(' | '):kalshiLastError||'no public BTC contracts returned'}. Static GitHub Pages needs the companion Kalshi bridge.`;
+      const cool=Date.now()<kalshiBackoffUntil?` Rate-limit backoff ${Math.ceil((kalshiBackoffUntil-Date.now())/1000)}s.`:'';
+      diag.textContent=KALSHI_BRIDGE?`Bridge/Kalshi unavailable: ${kalshiLastError||errors.join(' | ')||'no response'}.${cool}`:`Browser/API access blocked: ${errors.length?errors.join(' | '):kalshiLastError||'no public BTC contracts returned'}. Static GitHub Pages needs the companion Kalshi bridge.${cool}`;
     }
   }
 }
@@ -874,7 +912,7 @@ if(bridgeParam){try{localStorage.setItem('jb_kalshi_bridge',bridgeParam.replace(
 $('refresh').onclick=loadAll;$('tf').onchange=loadAll;$('window').onchange=calculate;
 initChartInteractions();
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
-setInterval(async()=>{if(!paused){try{await loadKalshi();calculate()}catch(_){} }},7000);
+setInterval(async()=>{if(!paused && Date.now()>=kalshiBackoffUntil){try{await loadKalshi();calculate()}catch(_){} }},20000);
 window.addEventListener('resize',()=>candles.length&&calculate());
 
 function setChartZoom(next){
