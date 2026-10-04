@@ -201,6 +201,16 @@ const WS='wss://ws.kraken.com/v2';
 // deploy the companion kalshi-proxy.js Worker and paste its URL here.
 const KALSHI_BRIDGE='https://jb-kalshi-proxy.jbrett1337.workers.dev';
 
+function kalshiUrl(path,base){
+  const b=String(base||'').replace(/\/$/,'');
+  const p=String(path||'').replace(/^\/+/,'');
+  if(!b)return '/'+p;
+  // Cloudflare Worker accepts /markets, /events, /series directly.
+  // Kalshi API hosts need the trade-api/v2 prefix.
+  if(b.includes('workers.dev')) return b+'/'+p;
+  return b+'/'+p;
+}
+
 async function fetchWithTimeout(url,ms=9000){
   const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms);
   try{return await fetch(url,{cache:'no-store',signal:ctl.signal})}
@@ -742,7 +752,12 @@ async function loadBTC(){
   // because getJson() is intentionally reserved for Kalshi's API hosts.
   // A previous build accidentally prefixed the Kraken URL with a Kalshi host,
   // which made the entire initial data load fail.
-  const r=await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'}});
+  let r;
+  try{
+    r=await fetchWithTimeout(url,10000);
+  }catch(e){
+    throw Error(e?.name==='AbortError'?'Kraken request timed out after 10s':'Kraken network/CORS error');
+  }
   if(!r.ok)throw Error(`Kraken HTTP ${r.status}`);
   const x=await r.json();
   if(x?.error?.length)throw Error(`Kraken ${x.error.join(', ')}`);
@@ -756,6 +771,9 @@ async function loadBTC(){
   if(!candles.length)throw Error('No BTC candles returned');
   price=candles.at(-1).c;
   $('price').textContent='$'+fmt(price,2);
+  // REST candles are enough to make the dashboard usable even if the
+  // WebSocket is still connecting or unavailable.
+  setStatus(true,'Live • Kraken');
   const first=candles[Math.max(0,candles.length-1-Math.round(1440/interval))]?.c||price;
   $('change').textContent=pct(price/first-1,2);
   $('change').className='big '+(price>=first?'green':'red');
