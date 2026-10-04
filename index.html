@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JB BTC Edge V7.6 • Live Kalshi Microstructure Sniper</title>
+<title>JB BTC Edge V7.7 • Live Kalshi Microstructure Sniper</title>
 <style>
 :root{--bg:#090d12;--p:#101720;--p2:#151f2a;--t:#edf3fa;--m:#8e9bab;--l:#263444;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff;--o:#ff9f43}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
@@ -54,7 +54,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </head>
 <body>
 <header>
-<div><h1>JB BTC Edge V7.6 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
+<div><h1>JB BTC Edge V7.7 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
 <div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
 </header>
 <main>
@@ -111,7 +111,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 <div class="card" style="margin-top:10px"><div class="label">Best Contract Microstructure</div><div id="bookDetail" class="depth">Waiting for order-book data…</div></div>
 <div class="card" style="margin-top:10px">
   <div class="microHead">
-    <div class="label">V7.6 Live Microstructure Engine</div>
+    <div class="label">V7.7 Live Microstructure Engine</div>
     <div id="microState" class="microBadge">WAITING FOR FLOW</div>
   </div>
   <div class="flowGrid" style="margin-top:9px">
@@ -129,7 +129,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
   </div>
 </div>
 <div class="card" style="margin-top:10px">
-  <div class="label">⚡ V7.6 Sniper Trigger</div>
+  <div class="label">⚡ V7.7 Sniper Trigger</div>
   <div id="sniperTrigger" class="trigger yellow">SCANNING…</div>
   <div id="sniperReason" class="triggerSmall">The trigger combines model edge, VWAP regime, pattern confirmation, volume, order-book imbalance, flow delta, liquidity behavior and time-to-expiry.</div>
 </div>
@@ -164,7 +164,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </div>
 
 <div class="section"><div class="card"><div class="label">Data Notes</div><div class="note">
-BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V7.6 adds a rolling order-book depth/imbalance history and interactive candle inspection, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled; the tool tries the dedicated external API host first and the legacy elections API host second. This is still an analytical model, not the official Kalshi probability or settlement feed.
+BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V7.7 adds a rolling order-book depth/imbalance history and interactive candle inspection, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled; the tool tries the dedicated external API host first and the legacy elections API host second. This is still an analytical model, not the official Kalshi probability or settlement feed.
 </div></div></div>
 </main>
 
@@ -654,7 +654,14 @@ function drawPattern(ctx,p,x,y,L,R){
 async function loadBTC(){
   const interval=Math.max(1,Number($('tf').value)||5);
   const url=`${KRAKEN}/OHLC?pair=XBTUSD&interval=${interval}`;
-  const x=await getJson(url);
+  // Kraken is independent of Kalshi. Do NOT route this through getJson(),
+  // because getJson() is intentionally reserved for Kalshi's API hosts.
+  // A previous build accidentally prefixed the Kraken URL with a Kalshi host,
+  // which made the entire initial data load fail.
+  const r=await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'}});
+  if(!r.ok)throw Error(`Kraken HTTP ${r.status}`);
+  const x=await r.json();
+  if(x?.error?.length)throw Error(`Kraken ${x.error.join(', ')}`);
   const result=x?.result||{};
   const key=Object.keys(result).find(k=>k!=='last');
   const raw=key?result[key]:[];
@@ -818,7 +825,13 @@ async function loadAll(){
  clearErr();
  try{
   await loadBTC();
-  await loadKalshi();
+  try{
+    await loadKalshi();
+  }catch(e){
+    markets=[];
+    $('kalshiStatus').textContent='Kalshi: unavailable • BTC chart still live';
+    $('kalshiDiag').textContent=`Kalshi feed unavailable: ${e.message}`;
+  }
   await calculate();
   connect();
  }catch(e){
