@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JB BTC Edge V7.2 • Live Kalshi Microstructure Sniper</title>
+<title>JB BTC Edge V7.3 • Live Kalshi Microstructure Sniper</title>
 <style>
 :root{--bg:#090d12;--p:#101720;--p2:#151f2a;--t:#edf3fa;--m:#8e9bab;--l:#263444;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff;--o:#ff9f43}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
@@ -41,7 +41,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </head>
 <body>
 <header>
-<div><h1>JB BTC Edge V7.2 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
+<div><h1>JB BTC Edge V7.3 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
 <div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
 </header>
 <main>
@@ -49,7 +49,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 <select id="tf"><option value="1">1m</option><option value="5" selected>5m</option><option value="15">15m</option><option value="60">1h</option></select>
 <select id="window"><option value="all" selected>15m + hourly</option><option value="15m">15m only</option><option value="1h">Hourly only</option></select>
 <button id="refresh">Refresh</button><button id="pause">Pause live</button>
-<span class="pill" id="kalshiStatus">Kalshi: connecting…</span>
+<span class="pill" id="kalshiStatus">Kalshi: connecting…</span><span class="pill" id="kalshiDiag">Feed diagnostics: starting…</span>
 </div>
 <div id="error"></div>
 
@@ -98,7 +98,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 <div class="card" style="margin-top:10px"><div class="label">Best Contract Microstructure</div><div id="bookDetail" class="depth">Waiting for order-book data…</div></div>
 <div class="card" style="margin-top:10px">
   <div class="microHead">
-    <div class="label">V7.2 Live Microstructure Engine</div>
+    <div class="label">V7.3 Live Microstructure Engine</div>
     <div id="microState" class="microBadge">WAITING FOR FLOW</div>
   </div>
   <div class="flowGrid" style="margin-top:9px">
@@ -116,7 +116,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
   </div>
 </div>
 <div class="card" style="margin-top:10px">
-  <div class="label">⚡ V7.2 Sniper Trigger</div>
+  <div class="label">⚡ V7.3 Sniper Trigger</div>
   <div id="sniperTrigger" class="trigger yellow">SCANNING…</div>
   <div id="sniperReason" class="triggerSmall">The trigger combines model edge, VWAP regime, pattern confirmation, volume, order-book imbalance, flow delta, liquidity behavior and time-to-expiry.</div>
 </div>
@@ -145,7 +145,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </div>
 
 <div class="section"><div class="card"><div class="label">Data Notes</div><div class="note">
-BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V7.2 adds a rolling order-book depth/imbalance history, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled; this is still an analytical model, not the official Kalshi probability or settlement feed.
+BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V7.3 adds a rolling order-book depth/imbalance history, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled; this is still an analytical model, not the official Kalshi probability or settlement feed.
 </div></div></div>
 </main>
 
@@ -245,7 +245,12 @@ function detectPatterns(){
   if(H&&L){const hv=Math.abs(H.at(lastI)-H.at(hs.at(-3).i)),lv=Math.abs(L.at(lastI)-L.at(ls.at(-3).i));const sameTop=Math.abs(hs.at(-1).p-hs.at(-2).p)<A*.8,sameLow=Math.abs(ls.at(-1).p-ls.at(-2).p)<A*.8;
    if(sameTop&&ls.at(-1).p>ls.at(-2).p)add('ASCENDING TRIANGLE','bull',78,{H,L,breakout:price>H.at(lastI)},[{H,L}]);
    else if(sameLow&&hs.at(-1).p<hs.at(-2).p)add('DESCENDING TRIANGLE','bear',78,{H,L,breakdown:price<L.at(lastI)},[{H,L}]);
-   else if(H.m<0&&L.m>0)add('SYMMETRICAL TRIANGLE',price>price?'bull':'bull',72,{H,L},[{H,L}]);
+   else if(H.m<0&&L.m>0){
+    const upper=H.at(lastI),lower=L.at(lastI);
+    const dir=price>upper?'bull':price<lower?'bear':'neutral';
+    const score=dir==='neutral'?72:90;
+    add('SYMMETRICAL TRIANGLE',dir,score,{H,L,upper,lower,breakout:dir==='bull',breakdown:dir==='bear'},[{H,L}]);
+   }
    else if(H.m>0&&L.m>0&&H.m<L.m)add('RISING WEDGE','bear',70,{H,L,breakdown:price<L.at(lastI)},[{H,L}]);
    else if(H.m<0&&L.m<0&&H.m<L.m)add('FALLING WEDGE','bull',70,{H,L,breakout:price>H.at(lastI)},[{H,L}]);
   }
@@ -344,6 +349,7 @@ function microStats(m){
  const liquidityChange=avgOld?avgRecent/avgOld-1:depthDelta;
  const pull=Math.max(0,-Math.min(yesDelta,noDelta));
  const stack=Math.max(0,Math.max(yesDelta,noDelta));
+ m._prevBook=m._book||null;
  return {...b,flow:f,depthDelta,yesDelta,noDelta,liquidityChange,pull,stack,hist,flowHist};
 }
 function activity(m){
@@ -429,7 +435,7 @@ function drawHeatmap(r){
 }
 function updateV72(r,t,p){
  const m=r?.activity?.micro;
- if(!m){return}
+ if(!m){$('microState').textContent='WAITING FOR FLOW';return}
  const cls=v=>v>0?'green':v<0?'red':'yellow';
  $('depthDelta').textContent=(m.depthDelta>=0?'+':'')+pct(m.depthDelta,1);$('depthDelta').className='big '+cls(m.depthDelta);
  $('flowDelta').textContent=(m.flow.ratio>=0?'+':'')+pct(m.flow.ratio,1);$('flowDelta').className='big '+cls(m.flow.ratio);
@@ -495,15 +501,36 @@ function draw(t,p,rows){
 function drawPattern(ctx,p,x,y,L,R){
  ctx.save();ctx.lineWidth=2;ctx.setLineDash([]);
  const col=p.dir==='bull'?'#39d98a':p.dir==='bear'?'#ff5d6c':'#ffd166';ctx.strokeStyle=col;ctx.fillStyle=col;
- const last=candles.length-1;
- if(p.meta?.fitH&&p.meta?.fitL){const a=p.meta.fitH,b=p.meta.fitL;ctx.beginPath();ctx.moveTo(x(a.i0-(candles.length-120)),y(a.at(a.i0)));ctx.lineTo(x(a.i1-(candles.length-120)),y(a.at(a.i1)));ctx.stroke();ctx.beginPath();ctx.moveTo(x(b.i0-(candles.length-120)),y(b.at(b.i0)));ctx.lineTo(x(b.i1-(candles.length-120)),y(b.at(b.i1)));ctx.stroke()}
- if(p.name.includes('DOUBLE')){let a=p.meta.a,b=p.meta.b,r=p.meta.reaction;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(x(a.i-(candles.length-120)),y(a.p));ctx.lineTo(x(b.i-(candles.length-120)),y(b.p));ctx.stroke();ctx.beginPath();ctx.moveTo(x(Math.max(0,a.i-(candles.length-120))),y(r));ctx.lineTo(x(last-(candles.length-120)),y(r));ctx.stroke();ctx.setLineDash([])}
- if(p.name==='LIQUIDITY SWEEP'){let q=p.meta.level;ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(L,y(q));ctx.lineTo(R,y(q));ctx.stroke();ctx.setLineDash([])}
- const labelX=Math.min(Math.max(L+8,x(Math.max(0,last-(candles.length-120)+5))),R-190),labelY=32;
- ctx.fillStyle='#101720';ctx.strokeStyle=col;ctx.lineWidth=1;ctx.fillRect(labelX,labelY,180,78);ctx.strokeRect(labelX,labelY,180,78);
+ const windowStart=Math.max(0,candles.length-120),last=candles.length-1;
+ const local=i=>i-windowStart;
+ const inView=i=>i>=windowStart&&i<=last;
+ const right=x(Math.max(0,last-windowStart));
+ if(p.meta?.fitH&&p.meta?.fitL){
+  for(const fit of [p.meta.fitH,p.meta.fitL]){
+   if(inView(fit.i0)||inView(fit.i1)){
+    const a=Math.max(fit.i0,windowStart),b=Math.min(fit.i1,last);
+    ctx.beginPath();ctx.moveTo(x(local(a)),y(fit.at(a)));ctx.lineTo(x(local(b)),y(fit.at(b)));ctx.stroke();
+   }
+  }
+ }
+ if(p.name.includes('DOUBLE')){
+  const a=p.meta.a,b=p.meta.b,r=p.meta.reaction;
+  ctx.setLineDash([4,4]);
+  if(inView(a.i)&&inView(b.i)){ctx.beginPath();ctx.moveTo(x(local(a.i)),y(a.p));ctx.lineTo(x(local(b.i)),y(b.p));ctx.stroke();}
+  ctx.beginPath();ctx.moveTo(L,y(r));ctx.lineTo(right,y(r));ctx.stroke();ctx.setLineDash([]);
+ }
+ if(p.name==='LIQUIDITY SWEEP'){
+  const q=p.meta.level;ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(L,y(q));ctx.lineTo(right,y(q));ctx.stroke();ctx.setLineDash([]);
+ }
+ const labelW=205,labelH=82;
+ const labelX=clamp(right-labelW-8,L+8,right-labelW);
+ const labelY=32;
+ ctx.fillStyle='rgba(16,23,32,.94)';ctx.strokeStyle=col;ctx.lineWidth=1;ctx.fillRect(labelX,labelY,labelW,labelH);ctx.strokeRect(labelX,labelY,labelW,labelH);
  ctx.fillStyle=col;ctx.font='bold 12px Arial';ctx.fillText(p.name+' • '+p.score+'%',labelX+8,labelY+16);
  ctx.fillStyle='#edf3fa';ctx.font='10px Arial';
- const words=p.definition.split(' ');let line='',yy=labelY+31;for(const word of words){if((line+' '+word).length>31){ctx.fillText(line,labelX+8,yy);yy+=13;line=word}else line+=(line?' ':'')+word}if(line)ctx.fillText(line,labelX+8,yy);
+ const words=p.definition.split(' ');let line='',yy=labelY+31;
+ for(const word of words){if((line+' '+word).length>34){ctx.fillText(line,labelX+8,yy);yy+=13;line=word;if(yy>labelY+69)break}else line+=(line?' ':'')+word}
+ if(line&&yy<=labelY+69)ctx.fillText(line,labelX+8,yy);
  ctx.restore();
 }
 
@@ -661,12 +688,26 @@ async function loadKalshi(){
   }
 }
 async function loadAll(){
- clearErr();try{await loadBTC();await loadKalshi();await calculate();connect()}catch(e){setStatus(false,'Data error');err('Market data error: '+e.message+' — retrying.');setTimeout(()=>{if(!paused)loadAll()},8000)}
+ clearErr();
+ try{
+  await loadBTC();
+  await loadKalshi();
+  await calculate();
+  connect();
+ }catch(e){
+  setStatus(false,'Data error');
+  err('Market data error: '+e.message+' — retrying.');
+  try{if(candles.length)await calculate()}catch(_){}
+  setTimeout(()=>{if(!paused)loadAll()},8000);
+ }
 }
 $('refresh').onclick=loadAll;$('tf').onchange=loadAll;$('window').onchange=calculate;
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
 setInterval(async()=>{if(!paused){try{await loadKalshi();calculate()}catch(_){} }},7000);
 window.addEventListener('resize',()=>candles.length&&calculate());
+
+window.addEventListener('error',e=>{if(e?.message){err('Engine error: '+e.message)}});
+window.addEventListener('unhandledrejection',e=>{const m=e?.reason?.message||String(e?.reason||'Unknown promise error');err('Engine error: '+m)});
 loadAll();
 </script>
 </body>
