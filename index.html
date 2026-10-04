@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JB BTC Edge V7.3 • Live Kalshi Microstructure Sniper</title>
+<title>JB BTC Edge V7.4 • Live Kalshi Microstructure Sniper</title>
 <style>
 :root{--bg:#090d12;--p:#101720;--p2:#151f2a;--t:#edf3fa;--m:#8e9bab;--l:#263444;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff;--o:#ff9f43}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
@@ -151,6 +151,11 @@ BTC candles use Kraken public data for technical calculations. Kalshi crypto con
 
 <script>
 const KBASE='https://external-api.kalshi.com/trade-api/v2';
+const KRELAYS=[
+  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u=>`https://corsproxy.io/?url=${encodeURIComponent(u)}`
+];
+let kalshiTransport='DIRECT';
 const KRAKEN='https://api.kraken.com/0/public';
 const WS='wss://ws.kraken.com/v2';
 let candles=[],price=0,paused=false,ws=null,reconnect=null,markets=[],lastVol=new Map();
@@ -169,11 +174,20 @@ function setStatus(ok,t){$('dot').className='dot'+(ok?' on':'');$('conn').textCo
 function err(e){$('error').style.display='block';$('error').textContent=e}
 function clearErr(){$('error').style.display='none'}
 async function getJson(u){
-  let r;
-  try{r=await fetch(u,{cache:'no-store'})}
-  catch(e){throw Error('Network/CORS blocked: '+u.replace(KBASE,'KALSHI_API'))}
-  if(!r.ok)throw Error('HTTP '+r.status+' from '+u.replace(KBASE,'KALSHI_API'));
-  return r.json();
+  const attempts=[{name:'DIRECT',url:u},...KRELAYS.map((make,i)=>({name:i===0?'RELAY-1':'RELAY-2',url:make(u)}))];
+  let last='';
+  for(const a of attempts){
+    try{
+      const r=await fetch(a.url,{cache:'no-store',headers:{'Accept':'application/json'}});
+      if(!r.ok){last=`HTTP ${r.status}`;continue}
+      const text=await r.text();
+      let data;
+      try{data=JSON.parse(text)}catch(_){last='Non-JSON response';continue}
+      kalshiTransport=a.name;
+      return data;
+    }catch(e){last=e?.message||'network error'}
+  }
+  throw Error(`Kalshi unavailable (${last})`);
 }
 function returns(){let a=[];for(let i=1;i<candles.length;i++)a.push(Math.log(candles[i].c/candles[i-1].c));return a}
 function ema(n){if(candles.length<n)return price;let e=mean(candles.slice(0,n).map(x=>x.c)),k=2/(n+1);for(let i=n;i<candles.length;i++)e=candles[i].c*k+e*(1-k);return e}
@@ -677,7 +691,7 @@ async function loadKalshi(){
   }));
 
   const diag=$('kalshiDiag');
-  $('kalshiStatus').textContent=`Kalshi: ${markets.length} BTC contracts • ${groups.M15.length} × 15m • ${groups.H1.length} × 1h • live discovery`;
+  $('kalshiStatus').textContent=`Kalshi: ${markets.length} BTC contracts • ${groups.M15.length} × 15m • ${groups.H1.length} × 1h • ${kalshiTransport.toLowerCase()}`;
   if(diag){
     if(markets.length){
       const first=markets[0]?.ticker||'';
