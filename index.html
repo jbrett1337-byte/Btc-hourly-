@@ -199,7 +199,7 @@ const WS='wss://ws.kraken.com/v2';
 // GitHub Pages is static, so it cannot act as a server-side CORS proxy.
 // Leave this blank for direct public API access. If the browser blocks Kalshi,
 // deploy the companion kalshi-proxy.js Worker and paste its URL here.
-const KALSHI_BRIDGE=(localStorage.getItem('jb_kalshi_bridge')||'').trim().replace(/\/$/,'');
+const KALSHI_BRIDGE='https://jb-kalshi-proxy.jbrett1337.workers.dev';
 
 async function fetchWithTimeout(url,ms=9000){
   const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms);
@@ -889,26 +889,24 @@ async function loadKalshi(){
 }
 async function loadAll(){
  clearErr();
+ // Start the Kraken WebSocket immediately. Kalshi must never be allowed to
+ // hold the whole dashboard in a 'Connecting…' state.
+ connect();
  try{
   await loadBTC();
-  try{
-    await loadKalshi();
-  }catch(e){
-    markets=[];
-    $('kalshiStatus').textContent='Kalshi: unavailable • BTC chart still live';
-    $('kalshiDiag').textContent=`Kalshi feed unavailable: ${e.message}`;
-  }
-  await calculate();
-  connect();
  }catch(e){
-  setStatus(false,'Data error');
-  err('Market data error: '+e.message+' — retrying.');
-  try{if(candles.length)await calculate()}catch(_){}
-  setTimeout(()=>{if(!paused)loadAll()},8000);
+  setStatus(false,'Kraken error');
+  err('Kraken data error: '+e.message);
  }
+ try{
+  await loadKalshi();
+ }catch(e){
+  markets=[];
+  $('kalshiStatus').textContent='Kalshi: unavailable • BTC chart still live';
+  $('kalshiDiag').textContent=`Kalshi feed unavailable: ${e.message}`;
+ }
+ try{await calculate()}catch(e){err('Engine error: '+e.message)}
 }
-const bridgeParam=new URLSearchParams(location.search).get('kalshiBridge');
-if(bridgeParam){try{localStorage.setItem('jb_kalshi_bridge',bridgeParam.replace(/\/$/,''));location.replace(location.pathname+location.hash)}catch(_){} }
 $('refresh').onclick=loadAll;$('tf').onchange=loadAll;$('window').onchange=calculate;
 initChartInteractions();
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
