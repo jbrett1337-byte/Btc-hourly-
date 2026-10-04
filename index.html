@@ -603,16 +603,11 @@ function drawPattern(ctx,p,x,y,L,R){
  ctx.restore();
 }
 
-async function loadBTC(){
-  const interval=Math.max(1,Number($('tf').value)||5);
+async function fetchKrakenCandles(interval){
   const url=`${KRAKEN}/OHLC?pair=XBTUSD&interval=${interval}`;
-  // which made the entire initial data load fail.
   let r;
-  try{
-    r=await fetchWithTimeout(url,10000);
-  }catch(e){
-    throw Error(e?.name==='AbortError'?'Kraken request timed out after 10s':'Kraken network/CORS error');
-  }
+  try{r=await fetchWithTimeout(url,10000)}
+  catch(e){throw Error(e?.name==='AbortError'?'Kraken request timed out after 10s':'Kraken network/CORS error')}
   if(!r.ok)throw Error(`Kraken HTTP ${r.status}`);
   const x=await r.json();
   if(x?.error?.length)throw Error(`Kraken ${x.error.join(', ')}`);
@@ -620,16 +615,42 @@ async function loadBTC(){
   const key=Object.keys(result).find(k=>k!=='last');
   const raw=key?result[key]:[];
   if(!Array.isArray(raw)||raw.length<20)throw Error('Kraken returned insufficient BTC candle data');
-  candles=raw.slice(-720).map(r=>({
+  return raw.slice(-720).map(r=>({
     t:Number(r[0])*1000,o:Number(r[1]),h:Number(r[2]),l:Number(r[3]),c:Number(r[4]),v:Number(r[6]||0)
   })).filter(r=>[r.t,r.o,r.h,r.l,r.c].every(Number.isFinite));
+}
+
+async function fetchCoinbaseCandles(interval){
+  // Reliable browser-side fallback if Kraken blocks the GitHub Pages origin.
+  const seconds=Math.max(60,interval*60);
+  const url=`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=${seconds}`;
+  const r=await fetchWithTimeout(url,10000);
+  if(!r.ok)throw Error(`Coinbase HTTP ${r.status}`);
+  const raw=await r.json();
+  if(!Array.isArray(raw)||raw.length<20)throw Error('Coinbase returned insufficient BTC candle data');
+  return raw.slice(0,720).map(r=>({
+    t:Number(r[0])*1000,l:Number(r[1]),h:Number(r[2]),o:Number(r[3]),c:Number(r[4]),v:Number(r[5]||0)
+  })).filter(r=>[r.t,r.o,r.h,r.l,r.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
+}
+
+async function loadBTC(){
+  const interval=Math.max(1,Number($('tf').value)||5);
+  let source='Kraken';
+  try{
+    candles=await fetchKrakenCandles(interval);
+  }catch(krakenErr){
+    try{
+      candles=await fetchCoinbaseCandles(interval);
+      source='Coinbase fallback';
+    }catch(coinbaseErr){
+      throw Error(`Kraken unavailable; Coinbase fallback failed: ${coinbaseErr.message}`);
+    }
+  }
   if(!candles.length)throw Error('No BTC candles returned');
   price=candles.at(-1).c;
   $('price').textContent='$'+fmt(price,2);
   clearErr();
-  // REST candles are enough to make the dashboard usable even if the
-  // WebSocket is still connecting or unavailable.
-  setStatus(true,'Live • Kraken');
+  setStatus(true,`Live • ${source}`);
   const first=candles[Math.max(0,candles.length-1-Math.round(1440/interval))]?.c||price;
   $('change').textContent=pct(price/first-1,2);
   $('change').className='big '+(price>=first?'green':'red');
@@ -659,11 +680,10 @@ async function loadAll(){
   setStatus(false,'Loading BTC…');
   try{
     await loadBTC();
-    setStatus(true,'Live • Kraken');
     await calculate();
   }catch(e){
-    if(candles.length&&price){setStatus(true,'Live • Kraken')}
-    else{setStatus(false,'Kraken error');err('Kraken data error: '+e.message)}
+    if(candles.length&&price){setStatus(true,'Live • data cached');clearErr()}
+    else{setStatus(false,'BTC feed error');err('BTC data error: '+e.message)}
   }
 }
 $('refresh').onclick=loadAll;$('tf').onchange=loadAll;
@@ -671,9 +691,9 @@ initChartInteractions();
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
 setInterval(async()=>{
   if(paused)return;
-  try{await loadBTC();clearErr();setStatus(true,'Live • Kraken');await calculate()}catch(e){
-    if(candles.length&&price){setStatus(true,'Live • Kraken')}
-    else{setStatus(false,'Kraken error');err('Kraken data error: '+e.message)}
+  try{await loadBTC();await calculate()}catch(e){
+    if(candles.length&&price){setStatus(true,'Live • data cached');clearErr()}
+    else{setStatus(false,'BTC feed error');err('BTC data error: '+e.message)}
   }
 },5000);
 window.addEventListener('resize',()=>candles.length&&calculate());
