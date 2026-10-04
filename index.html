@@ -960,7 +960,7 @@ initChartInteractions();
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
 setInterval(async()=>{
   if(paused)return;
-  try{await loadBTC();setStatus(true,'Live • Kraken');await calculate()}catch(e){
+  try{await loadBTC();clearErr();setStatus(true,'Live • Kraken');await calculate()}catch(e){
     if(candles.length&&price){setStatus(true,'Live • Kraken')}
     else{setStatus(false,'Kraken error');err('Kraken data error: '+e.message)}
   }
