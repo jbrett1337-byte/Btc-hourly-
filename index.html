@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JB BTC Edge V7.4 • Live Kalshi Microstructure Sniper</title>
+<title>JB BTC Edge V7.6 • Live Kalshi Microstructure Sniper</title>
 <style>
 :root{--bg:#090d12;--p:#101720;--p2:#151f2a;--t:#edf3fa;--m:#8e9bab;--l:#263444;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff;--o:#ff9f43}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
@@ -21,6 +21,19 @@ table{width:100%;border-collapse:collapse;background:var(--p);border:1px solid v
 th,td{padding:8px;border-bottom:1px solid var(--l);text-align:left;font-size:12px}th{background:var(--p2);color:var(--m);position:sticky;top:0}tr:last-child td{border:0}
 .sniper{display:grid;grid-template-columns:1.4fr repeat(6,1fr);gap:8px}.scorebox{font-size:30px;font-weight:800}.mini{font-size:11px;color:var(--m);margin-top:3px}
 canvas{width:100%;height:440px;display:block;background:var(--p);border:1px solid var(--l);border-radius:10px}
+.chartWrap{position:relative}
+.chartHint{position:absolute;right:12px;top:10px;padding:6px 9px;border:1px solid var(--l);border-radius:999px;background:rgba(12,19,27,.88);color:var(--m);font-size:11px;pointer-events:none;transition:opacity .25s}
+.chartHint.hidden{opacity:0}
+#chart{touch-action:none;cursor:crosshair}
+.candleDetails{margin-top:9px;padding:11px 12px;border:1px solid var(--l);border-radius:10px;background:var(--p2);min-height:58px}
+.candleDetailsEmpty{color:var(--m);font-size:12px}
+.candleGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.candleMetric{min-width:0}
+.candleMetric .label{font-size:10px}
+.candleMetric .value{font-size:13px;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.candleSelected{font-size:12px;font-weight:700;margin-bottom:7px}
+@media(max-width:700px){.candleGrid{grid-template-columns:repeat(3,1fr)}}
+
 .patternGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.microGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.depth{font-family:monospace;font-size:11px;line-height:1.55}.imbalance{font-size:25px;font-weight:800}.bookRow{display:flex;justify-content:space-between;border-bottom:1px solid var(--l);padding:4px 0}.buy{color:var(--g)}.sell{color:var(--r)}.patternTitle{font-size:20px;font-weight:800}.def{font-size:12px;line-height:1.55;color:var(--m);margin-top:7px}.metric{display:inline-block;margin:5px 5px 0 0;padding:5px 7px;background:var(--p2);border-radius:7px;font-size:11px}
 #error{display:none;margin-top:10px;padding:10px;border:1px solid #59323a;background:#1b1115;border-radius:8px;color:#ff9aa4;font-size:12px}
 @media(max-width:1150px){.grid5{grid-template-columns:repeat(3,1fr)}.sniper{grid-template-columns:repeat(3,1fr)}.microGrid{grid-template-columns:repeat(2,1fr)}}
@@ -41,7 +54,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </head>
 <body>
 <header>
-<div><h1>JB BTC Edge V7.3 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
+<div><h1>JB BTC Edge V7.6 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
 <div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
 </header>
 <main>
@@ -98,7 +111,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 <div class="card" style="margin-top:10px"><div class="label">Best Contract Microstructure</div><div id="bookDetail" class="depth">Waiting for order-book data…</div></div>
 <div class="card" style="margin-top:10px">
   <div class="microHead">
-    <div class="label">V7.3 Live Microstructure Engine</div>
+    <div class="label">V7.6 Live Microstructure Engine</div>
     <div id="microState" class="microBadge">WAITING FOR FLOW</div>
   </div>
   <div class="flowGrid" style="margin-top:9px">
@@ -116,7 +129,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
   </div>
 </div>
 <div class="card" style="margin-top:10px">
-  <div class="label">⚡ V7.3 Sniper Trigger</div>
+  <div class="label">⚡ V7.6 Sniper Trigger</div>
   <div id="sniperTrigger" class="trigger yellow">SCANNING…</div>
   <div id="sniperReason" class="triggerSmall">The trigger combines model edge, VWAP regime, pattern confirmation, volume, order-book imbalance, flow delta, liquidity behavior and time-to-expiry.</div>
 </div>
@@ -130,7 +143,13 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </div>
 
 <div class="section"><h2>📈 BTC Chart • Patterns + VWAP + Kalshi Levels</h2>
-<canvas id="chart"></canvas>
+<div class="chartWrap">
+<canvas id="chart" aria-label="Interactive BTC candlestick chart. Tap or click a candle for details."></canvas>
+<div id="chartHint" class="chartHint">Tap / click any candle to inspect it</div>
+</div>
+<div id="candleDetails" class="candleDetails">
+  <div class="candleDetailsEmpty">Select a candle to see its exact time, OHLC, range, volume and move.</div>
+</div>
 <div class="note" style="margin-top:7px">Pattern labels and definitions are model classifications. A drawn pattern is not a guarantee; “CONFIRMED” requires the engine’s confirmation rule, usually a boundary break and/or volume confirmation.</div>
 </div>
 
@@ -145,17 +164,18 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </div>
 
 <div class="section"><div class="card"><div class="label">Data Notes</div><div class="note">
-BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V7.3 adds a rolling order-book depth/imbalance history, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled; this is still an analytical model, not the official Kalshi probability or settlement feed.
+BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V7.6 adds a rolling order-book depth/imbalance history and interactive candle inspection, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled; the tool tries the dedicated external API host first and the legacy elections API host second. This is still an analytical model, not the official Kalshi probability or settlement feed.
 </div></div></div>
 </main>
 
 <script>
-const KBASE='https://api.elections.kalshi.com/trade-api/v2';
-const KRELAYS=[
-  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  u=>`https://corsproxy.io/?url=${encodeURIComponent(u)}`
+const KBASES=[
+  {name:'EXTERNAL',base:'https://external-api.kalshi.com/trade-api/v2'},
+  {name:'ELECTIONS',base:'https://api.elections.kalshi.com/trade-api/v2'}
 ];
-let kalshiTransport='DIRECT';
+let KBASE=KBASES[0].base;
+let kalshiTransport='—';
+let kalshiLastError='';
 const KRAKEN='https://api.kraken.com/0/public';
 const WS='wss://ws.kraken.com/v2';
 let candles=[],price=0,paused=false,ws=null,reconnect=null,markets=[],lastVol=new Map();
@@ -173,20 +193,22 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 function setStatus(ok,t){$('dot').className='dot'+(ok?' on':'');$('conn').textContent=t}
 function err(e){$('error').style.display='block';$('error').textContent=e}
 function clearErr(){$('error').style.display='none'}
-async function getJson(u){
-  const attempts=[{name:'DIRECT',url:u},...KRELAYS.map((make,i)=>({name:i===0?'RELAY-1':'RELAY-2',url:make(u)}))];
+async function getJson(pathOrUrl){
+  const path=String(pathOrUrl).startsWith('http')?String(pathOrUrl).replace(/^https:\/\/[^/]+\/trade-api\/v2/,''):String(pathOrUrl);
   let last='';
-  for(const a of attempts){
+  for(const host of KBASES){
+    const url=host.base + (path.startsWith('/')?path:'/'+path);
     try{
-      const r=await fetch(a.url,{cache:'no-store',headers:{'Accept':'application/json'}});
-      if(!r.ok){last=`HTTP ${r.status}`;continue}
+      const r=await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'}});
+      if(!r.ok){last=`${host.name} HTTP ${r.status}`;continue}
       const text=await r.text();
       let data;
-      try{data=JSON.parse(text)}catch(_){last='Non-JSON response';continue}
-      kalshiTransport=a.name;
+      try{data=JSON.parse(text)}catch(_){last=`${host.name} non-JSON response`;continue}
+      KBASE=host.base;kalshiTransport=host.name;kalshiLastError='';
       return data;
-    }catch(e){last=e?.message||'network error'}
+    }catch(e){last=`${host.name} ${e?.message||'network error'}`}
   }
+  kalshiLastError=last;
   throw Error(`Kalshi unavailable (${last})`);
 }
 function returns(){let a=[];for(let i=1;i<candles.length;i++)a.push(Math.log(candles[i].c/candles[i-1].c));return a}
@@ -497,18 +519,99 @@ function render(t,p,rows){
  $('rsi').textContent=t.r.toFixed(1);$('structure').textContent=t.s;$('structure').className='signal '+(t.s==='BULLISH'?'green':t.s==='BEARISH'?'red':'yellow');$('btcVolume').textContent=v.ratio.toFixed(2)+'× avg';$('regimeScore').textContent=t.z.toFixed(2);
  renderPattern(p,t);best(rows,t,p);draw(t,p,rows);
 }
+let selectedCandleTs=null;
+let hoveredCandleIndex=null;
+let chartView=null;
+
+function candleFromPointer(clientX){
+ const c=$('chart');
+ if(!chartView||!c) return null;
+ const rect=c.getBoundingClientRect();
+ const px=clamp(clientX-rect.left,chartView.L,chartView.w-chartView.R);
+ const local=Math.round((px-chartView.L)/Math.max(1,chartView.PW)*(chartView.data.length-1));
+ return {local,candle:chartView.data[local],x:chartView.x(local),rect};
+}
+function showCandleDetails(k,local){
+ if(!k)return;
+ const prev=local>0?chartView.data[local-1]:null;
+ const move=prev?(k.c/prev.c-1)*100:0;
+ const range=k.h-k.l,body=Math.abs(k.c-k.o);
+ const time=new Date(k.t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+ $('candleDetails').innerHTML=`
+  <div class="candleSelected">Selected candle • ${time}</div>
+  <div class="candleGrid">
+   <div class="candleMetric"><div class="label">Open</div><div class="value">$${fmt(k.o,2)}</div></div>
+   <div class="candleMetric"><div class="label">High</div><div class="value">$${fmt(k.h,2)}</div></div>
+   <div class="candleMetric"><div class="label">Low</div><div class="value">$${fmt(k.l,2)}</div></div>
+   <div class="candleMetric"><div class="label">Close</div><div class="value">$${fmt(k.c,2)}</div></div>
+   <div class="candleMetric"><div class="label">Range</div><div class="value">$${fmt(range,2)}</div></div>
+   <div class="candleMetric"><div class="label">Volume</div><div class="value">${Number(k.v||0).toLocaleString()}</div></div>
+  </div>
+  <div class="mini" style="margin-top:7px">${k.c>=k.o?'Bullish':'Bearish'} candle • body $${fmt(body,2)} • ${move>=0?'+':''}${move.toFixed(2)}% vs previous close</div>`;
+}
+function drawSelectedCandle(ctx){
+ if(!chartView||selectedCandleTs==null)return;
+ const local=chartView.data.findIndex(k=>k.t===selectedCandleTs);
+ if(local<0)return;
+ const k=chartView.data[local],xx=chartView.x(local);
+ ctx.save();
+ ctx.strokeStyle='#ffffff';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+ ctx.beginPath();ctx.moveTo(xx,chartView.T);ctx.lineTo(xx,chartView.h-chartView.B);ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle='rgba(255,255,255,.14)';
+ ctx.fillRect(Math.max(chartView.L,xx-chartView.cw*.9),chartView.T,Math.max(2,chartView.cw*1.8),chartView.PH);
+ ctx.strokeStyle='#ffffff';ctx.lineWidth=2;
+ const top=chartView.y(k.h),bot=chartView.y(k.l);ctx.strokeRect(Math.max(chartView.L,xx-chartView.cw/2-2),top,chartView.cw+4,Math.max(4,bot-top));
+ ctx.fillStyle='#ffffff';ctx.font='bold 10px Arial';
+ const label=`${new Date(k.t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}  $${fmt(k.c,2)}`;
+ const tw=ctx.measureText(label).width+14,lx=clamp(xx-tw/2,chartView.L,chartView.w-chartView.R-tw),ly=chartView.T+4;
+ ctx.fillStyle='rgba(10,15,22,.94)';ctx.fillRect(lx,ly,tw,18);ctx.fillStyle='#fff';ctx.fillText(label,lx+7,ly+12);
+ ctx.restore();
+}
+function updateCandleHover(clientX){
+ const hit=candleFromPointer(clientX);
+ if(!hit)return;
+ hoveredCandleIndex=hit.local;
+ drawCurrent();
+}
+function drawCurrent(){
+ if(!candles.length)return;
+ try{const t=tech(),p=detectPatterns(),rows=scanMarkets(t);draw(t,p,rows)}catch(_){}
+}
+function selectCandle(clientX){
+ const hit=candleFromPointer(clientX);
+ if(!hit?.candle)return;
+ selectedCandleTs=hit.candle.t;
+ showCandleDetails(hit.candle,hit.local);
+ $('chartHint')?.classList.add('hidden');
+ drawCurrent();
+}
+function initChartInteractions(){
+ const c=$('chart');if(!c||c.dataset.interactive)return;c.dataset.interactive='1';
+ c.addEventListener('pointermove',e=>updateCandleHover(e.clientX));
+ c.addEventListener('pointerleave',()=>{hoveredCandleIndex=null;drawCurrent()});
+ c.addEventListener('pointerup',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;selectCandle(e.clientX)});
+ c.addEventListener('click',e=>{if(e.detail===0)selectCandle(e.clientX)});
+}
+
 function draw(t,p,rows){
  const c=$('chart'),ctx=c.getContext('2d'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
  const data=candles.slice(-120),vals=data.flatMap(x=>[x.h,x.l]);if(!vals.length)return;
  let mn=Math.min(...vals),mx=Math.max(...vals);[t.b.m36,t.b.m08,t.b.vw,t.b.p08,t.b.p36].forEach(x=>{mn=Math.min(mn,x);mx=Math.max(mx,x)});rows.slice(0,8).forEach(r=>{if(Number.isFinite(r.strike)){mn=Math.min(mn,r.strike);mx=Math.max(mx,r.strike)}});
  const pad=(mx-mn)*.08||1;mn-=pad;mx+=pad;const L=62,R=15,T=20,B=28,PW=w-L-R,PH=h-T-B,x=i=>L+i/Math.max(1,data.length-1)*PW,y=v=>T+(mx-v)/(mx-mn)*PH;
+ chartView={data,L,R,T,B,PW,PH,w,h,x,y,cw:Math.max(2,Math.min(8,PW/data.length*.7))};
  ctx.font='10px Arial';ctx.strokeStyle='#263444';ctx.fillStyle='#8e9bab';for(let i=0;i<6;i++){let yy=T+i*PH/5;ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.fillText('$'+fmt(mx-(mx-mn)*i/5,0),5,yy+4)}
  const bands=[['-3.6σ',t.b.m36,'#ff5d6c'],['-0.8σ',t.b.m08,'#ff5d6c'],['VWAP',t.b.vw,'#55c7ff'],['+0.8σ',t.b.p08,'#39d98a'],['+3.6σ',t.b.p36,'#39d98a']];
  bands.forEach(([name,val,col])=>{ctx.strokeStyle=col;ctx.setLineDash(name==='VWAP'?[]:[5,5]);ctx.beginPath();ctx.moveTo(L,y(val));ctx.lineTo(w-R,y(val));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.fillText(name+' $'+fmt(val,0),L+5,y(val)-4)});
- const cw=Math.max(2,Math.min(8,PW/data.length*.7));data.forEach((k,i)=>{let xx=x(i),up=k.c>=k.o;ctx.strokeStyle=up?'#39d98a':'#ff5d6c';ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(xx,y(k.h));ctx.lineTo(xx,y(k.l));ctx.stroke();let top=Math.min(y(k.o),y(k.c)),bh=Math.max(1,Math.abs(y(k.c)-y(k.o)));ctx.fillRect(xx-cw/2,top,cw,bh)});
+ const cw=chartView.cw;data.forEach((k,i)=>{let xx=x(i),up=k.c>=k.o;ctx.strokeStyle=up?'#39d98a':'#ff5d6c';ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(xx,y(k.h));ctx.lineTo(xx,y(k.l));ctx.stroke();let top=Math.min(y(k.o),y(k.c)),bh=Math.max(1,Math.abs(y(k.c)-y(k.o)));ctx.fillRect(xx-cw/2,top,cw,bh)});
  ctx.strokeStyle='#55c7ff';ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(L,y(price));ctx.lineTo(w-R,y(price));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#55c7ff';ctx.font='bold 11px Arial';ctx.fillText('LIVE $'+fmt(price,2),L+5,Math.max(14,y(price)-7));
  // Kalshi strike levels
  rows.slice(0,5).forEach(r=>{if(!Number.isFinite(r.strike))return;ctx.strokeStyle='#ffd166';ctx.setLineDash([2,6]);ctx.beginPath();ctx.moveTo(L,y(r.strike));ctx.lineTo(w-R,y(r.strike));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#ffd166';ctx.fillText('K '+fmt(r.strike,0)+' • '+Math.round(r.model*100)+'%',w-R-150,y(r.strike)-4)});
+ // Hover guide
+ if(hoveredCandleIndex!=null&&chartView.data[hoveredCandleIndex]){
+   const hx=x(hoveredCandleIndex);ctx.save();ctx.strokeStyle='rgba(255,255,255,.28)';ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(hx,T);ctx.lineTo(hx,h-B);ctx.stroke();ctx.restore();
+ }
+ // Selected candle
+ drawSelectedCandle(ctx);
  // Pattern drawing
  if(p)drawPattern(ctx,p,x,y,L,R);
 }
@@ -581,15 +684,15 @@ function connect(){
  ws.onclose=()=>{setStatus(false,'Reconnecting…');if(!paused)reconnect=setTimeout(connect,2500)};ws.onerror=()=>setStatus(false,'Feed error');
 }
 async function fetchOrderBook(ticker){
- try{return await getJson(`${KBASE}/markets/${encodeURIComponent(ticker)}/orderbook?depth=10`)}catch(e){return null}
+ try{return await getJson(`/markets/${encodeURIComponent(ticker)}/orderbook?depth=10`)}catch(e){return null}
 }
 async function fetchTrades(ticker){
- try{const x=await getJson(`${KBASE}/markets/trades?ticker=${encodeURIComponent(ticker)}&limit=50`);return x.trades||[]}catch(e){return[]}
+ try{const x=await getJson(`/markets/trades?ticker=${encodeURIComponent(ticker)}&limit=50`);return x.trades||[]}catch(e){return[]}
 }
 async function fetchKalshiMarkets(params=''){
   const all=[]; let cursor='';
   for(let page=0;page<5;page++){
-    const u=`${KBASE}/markets?limit=1000&status=open${params}${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
+    const u=`/markets?limit=1000&status=open${params}${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
     const x=await getJson(u);
     all.push(...(x?.markets||[]));
     cursor=x?.cursor||'';
@@ -600,7 +703,7 @@ async function fetchKalshiMarkets(params=''){
 async function fetchKalshiEvents(series){
   const all=[]; let cursor='';
   for(let page=0;page<5;page++){
-    const u=`${KBASE}/events?limit=200&series_ticker=${encodeURIComponent(series)}&status=open&with_nested_markets=true${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
+    const u=`/events?limit=200&series_ticker=${encodeURIComponent(series)}&status=open&with_nested_markets=true${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
     const x=await getJson(u);
     all.push(...(x?.events||[]));
     cursor=x?.cursor||'';
@@ -641,12 +744,22 @@ async function loadKalshi(){
   }catch(e){errors.push('markets '+e.message)}
 
   // Also query the known recurring BTC series as a secondary source.
-  for(const s of ['KXBTC15M','KXBTC']){
+  for(const s of ['KXBTC15M','KXBTC','KXBTCD']){
     try{
       const events=await fetchKalshiEvents(s);
       all.push(...flattenKalshiEvents(events));
     }catch(e){errors.push(s+' '+e.message)}
   }
+
+  // Broad event discovery is the recovery path when series names change.
+  // Pull a small page of open events and keep only BTC/Bitcoin crypto events.
+  try{
+    const x=await getJson('/events?limit=100&status=open&with_nested_markets=true');
+    for(const ev of (x?.events||[])){
+      const text=String(ev?.title||'')+' '+String(ev?.sub_title||'')+' '+String(ev?.event_ticker||'');
+      if(/\bBTC\b|BITCOIN/i.test(text)) all.push(...flattenKalshiEvents([ev]));
+    }
+  }catch(e){errors.push('broad events '+e.message)}
 
   // De-duplicate actual contract tickers.
   const map=new Map();
@@ -697,7 +810,7 @@ async function loadKalshi(){
       const first=markets[0]?.ticker||'';
       diag.textContent=`Feed OK • ${markets.length} active BTC contracts • 15m ${groups.M15.length} • 1h ${groups.H1.length} • ${first}`;
     }else{
-      diag.textContent=`No live BTC markets found. ${errors.length?errors.join(' | '):'API returned no matching BTC contracts.'}`;
+      diag.textContent=`No live BTC markets found. Transport ${kalshiTransport}. ${errors.length?errors.join(' | '):kalshiLastError||'API returned no matching BTC contracts.'}`;
     }
   }
 }
@@ -716,6 +829,7 @@ async function loadAll(){
  }
 }
 $('refresh').onclick=loadAll;$('tf').onchange=loadAll;$('window').onchange=calculate;
+initChartInteractions();
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
 setInterval(async()=>{if(!paused){try{await loadKalshi();calculate()}catch(_){} }},7000);
 window.addEventListener('resize',()=>candles.length&&calculate());
