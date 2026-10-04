@@ -109,7 +109,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
     <div><div class="label">Sweep</div><div id="sweep" class="big yellow">—</div></div>
   </div>
   <canvas id="heatmap" class="heatmap" style="margin-top:10px"></canvas>
-  <div class="note" style="margin-top:6px">Heatmap = recent YES/NO resting depth snapshots for the selected best contract. Brighter cells represent more displayed liquidity; disappearing depth is treated as a possible pull.</div>
+  <div class="note" style="margin-top:6px">Heatmap = recent YES/NO resting bid-depth snapshots for the selected best contract. Brighter cells represent more displayed liquidity; disappearing depth is treated as a possible pull.</div>
   <div class="ladder" style="margin-top:10px">
     <div class="ladderCol"><div class="label">YES Depth Ladder</div><div id="yesLadder">Waiting…</div></div>
     <div class="ladderCol"><div class="label">NO Depth Ladder</div><div id="noLadder">Waiting…</div></div>
@@ -284,13 +284,22 @@ function contractProbability(m,t){
  return clamp(p,.01,.99);
 }
 function normalizeBookSide(a){
- return Array.isArray(a)?a.map(x=>({p:Number(x?.[0]),q:Number(x?.[1])})).filter(x=>Number.isFinite(x.p)&&Number.isFinite(x.q)&&x.q>0):[];
+  return Array.isArray(a)
+    ? a.map(x=>({p:Number(x?.[0]),q:Number(x?.[1])}))
+      .filter(x=>Number.isFinite(x.p)&&Number.isFinite(x.q)&&x.q>0)
+    : [];
 }
 function orderBookStats(book){
- const ob=book?.orderbook||book||{},yes=normalizeBookSide(ob.yes),no=normalizeBookSide(ob.no);
- const sum=a=>a.reduce((z,x)=>z+x.q,0),yd=sum(yes),nd=sum(no),tot=yd+nd||1;
- const topYes=yes[0]?.p,topNo=no[0]?.p;
- return{yesDepth:yd,noDepth:nd,imbalance:(yd-nd)/tot,topYes:Number.isFinite(topYes)?topYes/100:NaN,topNo:Number.isFinite(topNo)?topNo/100:NaN,yes,no};
+  const ob=book?.orderbook_fp||book?.orderbook||book||{};
+  const yes=normalizeBookSide(ob.yes_dollars||ob.yes||[]);
+  const no=normalizeBookSide(ob.no_dollars||ob.no||[]);
+  const sum=a=>a.reduce((z,x)=>z+x.q,0),yd=sum(yes),nd=sum(no),tot=yd+nd||1;
+  const topYes=yes[0]?.p,topNo=no[0]?.p;
+  return{
+    yesDepth:yd,noDepth:nd,imbalance:(yd-nd)/tot,
+    topYes:Number.isFinite(topYes)?topYes:NaN,
+    topNo:Number.isFinite(topNo)?topNo:NaN,yes,no
+  };
 }
 function tradeFlowStats(trades){
  const a=Array.isArray(trades)?trades:(trades?.trades||[]);let yes=0,no=0;
@@ -382,7 +391,7 @@ function scanMarkets(t){
 }
 function renderLadder(el,side){
  const max=Math.max(...side.map(x=>x.q),1);
- return side.slice(0,8).map(x=>`<div class="ladderRow"><span>${Math.round(x.p)}¢</span><div class="ladderBar"><div class="ladderFill" style="width:${Math.min(100,x.q/max*100)}%;background:${x.p?'#55c7ff':'#8e9bab'}"></div></div><span>${Math.round(x.q).toLocaleString()}</span></div>`).join('')||'<div class="note">No depth</div>';
+ return side.slice(0,8).map(x=>`<div class="ladderRow"><span>${Math.round(x.p*100)}¢</span><div class="ladderBar"><div class="ladderFill" style="width:${Math.min(100,x.q/max*100)}%;background:${x.p?'#55c7ff':'#8e9bab'}"></div></div><span>${Math.round(x.q).toLocaleString()}</span></div>`).join('')||'<div class="note">No depth</div>';
 }
 function drawHeatmap(r){
  const c=$('heatmap');if(!c)return;
@@ -484,6 +493,30 @@ function drawPattern(ctx,p,x,y,L,R){
  const words=p.definition.split(' ');let line='',yy=labelY+31;for(const word of words){if((line+' '+word).length>31){ctx.fillText(line,labelX+8,yy);yy+=13;line=word}else line+=(line?' ':'')+word}if(line)ctx.fillText(line,labelX+8,yy);
  ctx.restore();
 }
+
+async function loadBTC(){
+  const interval=Math.max(1,Number($('tf').value)||5);
+  const url=`${KRAKEN}/OHLC?pair=XBTUSD&interval=${interval}`;
+  const x=await getJson(url);
+  const result=x?.result||{};
+  const key=Object.keys(result).find(k=>k!=='last');
+  const raw=key?result[key]:[];
+  if(!Array.isArray(raw)||raw.length<20)throw Error('Kraken returned insufficient BTC candle data');
+  candles=raw.slice(-720).map(r=>({
+    t:Number(r[0])*1000,o:Number(r[1]),h:Number(r[2]),l:Number(r[3]),c:Number(r[4]),v:Number(r[6]||0)
+  })).filter(r=>[r.t,r.o,r.h,r.l,r.c].every(Number.isFinite));
+  if(!candles.length)throw Error('No BTC candles returned');
+  price=candles.at(-1).c;
+  $('btc').textContent='$'+fmt(price,2);
+  const first=candles[Math.max(0,candles.length-1-Math.round(1440/interval))]?.c||price;
+  $('change').textContent=pct(price/first-1,2);
+  $('change').className='big '+(price>=first?'green':'red');
+  const vi=volInfo();
+  $('volRatio').textContent=vi.ratio.toFixed(2)+'×';
+  $('volSub').textContent=`current ${Math.round(vi.cur).toLocaleString()} • avg ${Math.round(vi.avg).toLocaleString()}`;
+  $('atr').textContent='$'+fmt(atr(),2);
+}
+
 async function calculate(){
  if(!candles.length||!price)return;const t=tech(),p=detectPatterns(),rows=scanMarkets(t);render(t,p,rows);
 }
@@ -502,6 +535,12 @@ async function fetchTrades(ticker){
 async function loadKalshi(){
  const urls=[`${KBASE}/markets?series_ticker=KXBTC15M&status=open&limit=100`,`${KBASE}/markets?series_ticker=KXBTCD&status=open&limit=100`];
  let all=[];for(const u of urls){try{const x=await getJson(u);all.push(...(x.markets||[]))}catch(e){}}
+ if(!all.length){
+   try{
+     const x=await getJson(`${KBASE}/markets?status=open&limit=1000`);
+     all=(x.markets||[]).filter(m=>String(m.ticker||m.series_ticker||'').includes('KXBTC'));
+   }catch(e){}
+ }
  const now=Date.now();
  markets=all.filter(m=>(Date.parse(m.close_time||m.expiration_time||'')||0)>now);
  const candidates=markets.slice().sort((a,b)=>minutesLeft(a)-minutesLeft(b)).slice(0,8);
@@ -521,7 +560,7 @@ async function loadKalshi(){
  $('kalshiStatus').textContent=`Kalshi: ${markets.length} BTC contracts • V7.2 depth/flow engine live`;
 }
 async function loadAll(){
- clearErr();try{await loadBTC();await loadKalshi();await calculate();connect()}catch(e){setStatus(false,'Data error');err('Market data error: '+e.message+' — retrying.');setTimeout(()=>{if(!paused)loadAll()},5000)}
+ clearErr();try{await loadBTC();await loadKalshi();await calculate();connect()}catch(e){setStatus(false,'Data error');err('Market data error: '+e.message+' — retrying.');setTimeout(()=>{if(!paused)loadAll()},8000)}
 }
 $('refresh').onclick=loadAll;$('tf').onchange=loadAll;$('window').onchange=calculate;
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
