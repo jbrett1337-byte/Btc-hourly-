@@ -190,10 +190,16 @@ let kalshiLastError='';
 // back off automatically after HTTP 429 responses. Cached data can still be
 // used while the upstream limit cools down.
 const kalshiCache=new Map();
-let kalshiBackoffUntil=0;
-let kalshiBackoffMs=0;
-const KALSHI_CACHE_TTL=20000;
-const KALSHI_STALE_TTL=120000;
+let kalshiBackoffUntil=Number(localStorage.getItem('jb_kalshi_backoff_until')||0);
+let kalshiBackoffMs=Number(localStorage.getItem('jb_kalshi_backoff_ms')||0);
+const KALSHI_CACHE_TTL=30000;
+const KALSHI_STALE_TTL=900000;
+const KALSHI_DISCOVERY_GAP=60000;
+let kalshiLastDiscovery=Number(localStorage.getItem('jb_kalshi_last_discovery')||0);
+try{
+  const saved=JSON.parse(localStorage.getItem('jb_kalshi_cache_v81')||'[]');
+  if(Array.isArray(saved))saved.forEach(x=>{if(x&&x.key&&x.time)kalshiCache.set(x.key,{time:x.time,data:x.data})});
+}catch(_){}
 const KRAKEN='https://api.kraken.com/0/public';
 const WS='wss://ws.kraken.com/v2';
 // GitHub Pages is static, so it cannot act as a server-side CORS proxy.
@@ -267,12 +273,20 @@ function getCachedKalshi(path,allowStale=false){
   if(age<=KALSHI_CACHE_TTL || (allowStale&&age<=KALSHI_STALE_TTL))return hit.data;
   return null;
 }
-function setKalshiCache(path,data){kalshiCache.set(kalshiCacheKey(path),{time:Date.now(),data})}
+function setKalshiCache(path,data){
+  const key=kalshiCacheKey(path);
+  kalshiCache.set(key,{time:Date.now(),data});
+  try{
+    const arr=[...kalshiCache.entries()].slice(-12).map(([key,v])=>({key,time:v.time,data:v.data}));
+    localStorage.setItem('jb_kalshi_cache_v81',JSON.stringify(arr));
+  }catch(_){}
+}
 function noteKalshi429(e){
   const serverSec=Number(e?.retryAfter||0);
   kalshiBackoffMs=serverSec>0?serverSec*1000:Math.min(Math.max(kalshiBackoffMs*2,10000),60000);
   if(!kalshiBackoffMs)kalshiBackoffMs=10000;
   kalshiBackoffUntil=Date.now()+kalshiBackoffMs;
+  try{localStorage.setItem('jb_kalshi_backoff_until',String(kalshiBackoffUntil));localStorage.setItem('jb_kalshi_backoff_ms',String(kalshiBackoffMs))}catch(_){}
 }
 async function getJson(pathOrUrl){
   const path=String(pathOrUrl).startsWith('http')
@@ -293,6 +307,8 @@ async function getJson(pathOrUrl){
       const data=await readJsonResponse(await fetchWithTimeout(url),label);
       setKalshiCache(path,data);
       kalshiBackoffMs=0;kalshiBackoffUntil=0;kalshiLastError='';
+      kalshiLastDiscovery=Date.now();
+      try{localStorage.setItem('jb_kalshi_backoff_until','0');localStorage.setItem('jb_kalshi_backoff_ms','0');localStorage.setItem('jb_kalshi_last_discovery',String(kalshiLastDiscovery))}catch(_){}
       return data;
     }catch(e){
       if(e?.status===429)noteKalshi429(e);
@@ -715,16 +731,106 @@ function initChartInteractions(){
  c.addEventListener('click',e=>{if(e.detail===0)selectCandle(e.clientX)});
 }
 
+function previousSessionOHLC(){
+ const now=new Date(),todayStart=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate());
+ let rows=candles.filter(k=>k.t<todayStart);
+ if(rows.length<12){
+  const cut=(candles.at(-1)?.t||Date.now())-86400000;
+  rows=candles.filter(k=>k.t>=cut&&k.t<(candles.at(-1)?.t||Date.now()));
+ }
+ if(rows.length<3)return null;
+ return {h:Math.max(...rows.map(k=>k.h)),l:Math.min(...rows.map(k=>k.l)),c:rows.at(-1).c};
+}
+function classicPivots(){
+ const q=previousSessionOHLC(); if(!q)return null;
+ const pp=(q.h+q.l+q.c)/3,range=q.h-q.l;
+ return {pp,r1:2*pp-q.l,r2:pp+range,r3:q.h+2*(pp-q.l),s1:2*pp-q.h,s2:pp-range,s3:q.l-2*(q.h-pp),high:q.h,low:q.l,close:q.c};
+}
+function fibonacciPivots(){
+ const q=previousSessionOHLC(); if(!q)return null;
+ const pp=(q.h+q.l+q.c)/3,r=q.h-q.l;
+ return {pp,r1:pp+.382*r,r2:pp+.618*r,r3:pp+1*r,s1:pp-.382*r,s2:pp-.618*r,s3:pp-1*r};
+}
+function dynamicSR(data,t){
+ const n=data.length;if(n<15)return {support:[],resistance:[],pivots:[],fibPivots:[]};
+ const atrVal=Math.max(Number(t?.atr)||atr(14),price*.0005);
+ const range=Math.max(...data.map(k=>k.h))-Math.min(...data.map(k=>k.l));
+ const tol=Math.max(atrVal*.22,range*.012,price*.00035);
+ const pivH=[],pivL=[];
+ for(let i=2;i<n-2;i++){
+  const k=data[i];
+  if(k.h>=data[i-1].h&&k.h>=data[i-2].h&&k.h>=data[i+1].h&&k.h>=data[i+2].h)pivH.push({p:k.h,i,v:k.v||0});
+  if(k.l<=data[i-1].l&&k.l<=data[i-2].l&&k.l<=data[i+1].l&&k.l<=data[i+2].l)pivL.push({p:k.l,i,v:k.v||0});
+ }
+ const avgVol=mean(data.map(k=>k.v||0))||1;
+ function cluster(points,side){
+  const clusters=[];
+  for(const q of points){
+   let c=clusters.find(x=>Math.abs(x.level-q.p)<=tol);
+   if(!c){c={level:q.p,points:[]};clusters.push(c)}
+   c.points.push(q);c.level=mean(c.points.map(x=>x.p));
+  }
+  return clusters.map(c=>{
+   const last=Math.max(...c.points.map(x=>x.i)),touches=c.points.length;
+   const recency=.55+.45*(last/(n-1));
+   const volBoost=Math.min(1.5,mean(c.points.map(x=>(x.v||0)/avgVol))||1);
+   const raw=touches*24*recency*volBoost;
+   return {...c,strength:clamp(Math.round(raw),20,99),touches,side};
+  }).filter(c=>side==='support'?c.level<price:c.level>price)
+    .sort((a,b)=>b.strength-a.strength||Math.abs(a.level-price)-Math.abs(b.level-price));
+ }
+ const support=cluster(pivL,'support').slice(0,4),resistance=cluster(pivH,'resistance').slice(0,4);
+ const cp=classicPivots(),fp=fibonacciPivots();
+ // Add prior-session high/low as structural levels when available.
+ if(cp){
+  if(cp.low<price)support.push({level:cp.low,strength:78,touches:1,side:'support',source:'PDL'});
+  if(cp.high>price)resistance.push({level:cp.high,strength:78,touches:1,side:'resistance',source:'PDH'});
+ }
+ function dedupe(levels){
+  const out=[];
+  for(const q of levels.sort((a,b)=>b.strength-a.strength)){
+   if(!out.some(x=>Math.abs(x.level-q.level)<=tol*.7))out.push(q);
+  }
+  return out.sort((a,b)=>Math.abs(a.level-price)-Math.abs(b.level-price)).slice(0,4);
+ }
+ return {support:dedupe(support),resistance:dedupe(resistance),pivots:cp,fibPivots:fp,tolerance:tol};
+}
+function drawPivotLines(ctx,piv,y,L,R,w){
+ if(!piv)return;
+ const levels=[['PP',piv.pp,'#ffd166'],['R1',piv.r1,'#ff8a8a'],['R2',piv.r2,'#ff6b6b'],['R3',piv.r3,'#ff4d5a'],['S1',piv.s1,'#72e6ad'],['S2',piv.s2,'#39d98a'],['S3',piv.s3,'#20c77a']];
+ levels.forEach(([name,val,col])=>{
+  if(!Number.isFinite(val)||val<chartView.mn||val>chartView.mx)return;
+  const yy=y(val);ctx.save();ctx.strokeStyle=col;ctx.lineWidth=name==='PP'?1.8:1;ctx.setLineDash(name==='PP'?[]:[7,5]);ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.font='bold 9px Arial';ctx.fillText(name+' $'+fmt(val,0),L+5,yy+10);ctx.restore();
+ });
+}
+function drawSRBars(ctx,sr,y,L,R,w){
+ const drawGroup=(levels,isSupport)=>{
+  levels.forEach((q,idx)=>{
+   const yy=y(q.level),barW=104,barH=28,bx=w-R-barW-4,by=clamp(yy-barH/2,chartView.T,chartView.h-chartView.B-barH);
+   ctx.save();
+   ctx.fillStyle=isSupport?'rgba(57,217,138,.10)':'rgba(255,93,108,.10)';
+   ctx.strokeStyle=isSupport?'rgba(57,217,138,.55)':'rgba(255,93,108,.55)';ctx.lineWidth=1;
+   const zone=Math.max(4,Math.min(12,chartView.PH*.006));ctx.fillRect(L,yy-zone/2,w-R-L,zone);ctx.strokeRect(L,yy-zone/2,w-R-L,zone);
+   ctx.fillStyle='rgba(10,15,22,.94)';ctx.fillRect(bx,by,barW,barH);ctx.strokeStyle=isSupport?'#39d98a':'#ff5d6c';ctx.strokeRect(bx,by,barW,barH);
+   ctx.fillStyle=isSupport?'#39d98a':'#ff5d6c';ctx.font='bold 10px Arial';ctx.fillText((isSupport?'S':'R')+(idx+1)+' $'+fmt(q.level,0),bx+6,by+11);
+   const bw=barW-12,bh=4,bx2=bx+6,by2=by+18;ctx.fillStyle='#263444';ctx.fillRect(bx2,by2,bw,bh);ctx.fillStyle=isSupport?'#39d98a':'#ff5d6c';ctx.fillRect(bx2,by2,bw*q.strength/100,bh);
+   ctx.fillStyle='#9aa8b8';ctx.font='9px Arial';ctx.fillText(q.strength+'% • '+q.touches+' touch'+(q.touches===1?'':'es'),bx+barW-59,by+11);ctx.restore();
+  });
+ };
+ drawGroup(sr.support,true);drawGroup(sr.resistance,false);
+}
 function draw(t,p,rows){
  const c=$('chart'),ctx=c.getContext('2d'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
  const visibleCount=clamp(Math.round(120/chartZoom),CHART_MIN_CANDLES,CHART_MAX_CANDLES);
  const data=candles.slice(-visibleCount),vals=data.flatMap(x=>[x.h,x.l]);if(!vals.length)return;
  let mn=Math.min(...vals),mx=Math.max(...vals);[t.b.m36,t.b.m08,t.b.vw,t.b.p08,t.b.p36].forEach(x=>{mn=Math.min(mn,x);mx=Math.max(mx,x)});rows.slice(0,8).forEach(r=>{if(Number.isFinite(r.strike)){mn=Math.min(mn,r.strike);mx=Math.max(mx,r.strike)}});
  const pad=(mx-mn)*.08||1;mn-=pad;mx+=pad;const L=62,R=15,T=20,B=28,PW=w-L-R,PH=h-T-B,x=i=>L+i/Math.max(1,data.length-1)*PW,y=v=>T+(mx-v)/(mx-mn)*PH;
- chartView={data,L,R,T,B,PW,PH,w,h,x,y,cw:Math.max(2,Math.min(8,PW/data.length*.7))};
+ chartView={data,L,R,T,B,PW,PH,w,h,x,y,cw:Math.max(2,Math.min(8,PW/data.length*.7)),mn,mx};
  ctx.font='10px Arial';ctx.strokeStyle='#263444';ctx.fillStyle='#8e9bab';for(let i=0;i<6;i++){let yy=T+i*PH/5;ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.fillText('$'+fmt(mx-(mx-mn)*i/5,0),5,yy+4)}
+ const pivotInfo=classicPivots(); if(pivotInfo){ctx.fillStyle='#ffd166';ctx.font='bold 9px Arial';ctx.fillText('DAILY PIVOTS',L+70,T+9)}
  const bands=[['-3.6σ',t.b.m36,'#ff5d6c'],['-0.8σ',t.b.m08,'#ff5d6c'],['VWAP',t.b.vw,'#55c7ff'],['+0.8σ',t.b.p08,'#39d98a'],['+3.6σ',t.b.p36,'#39d98a']];
  bands.forEach(([name,val,col])=>{ctx.strokeStyle=col;ctx.setLineDash(name==='VWAP'?[]:[5,5]);ctx.beginPath();ctx.moveTo(L,y(val));ctx.lineTo(w-R,y(val));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.fillText(name+' $'+fmt(val,0),L+5,y(val)-4)});
+ const sr=dynamicSR(data,t); drawPivotLines(ctx,sr.pivots,y,L,R,w); drawSRBars(ctx,sr,y,L,R,w);
  const cw=chartView.cw;data.forEach((k,i)=>{let xx=x(i),up=k.c>=k.o;ctx.strokeStyle=up?'#39d98a':'#ff5d6c';ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(xx,y(k.h));ctx.lineTo(xx,y(k.l));ctx.stroke();let top=Math.min(y(k.o),y(k.c)),bh=Math.max(1,Math.abs(y(k.c)-y(k.o)));ctx.fillRect(xx-cw/2,top,cw,bh)});
  ctx.strokeStyle='#55c7ff';ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(L,y(price));ctx.lineTo(w-R,y(price));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#55c7ff';ctx.font='bold 11px Arial';ctx.fillText('LIVE $'+fmt(price,2),L+5,Math.max(14,y(price)-7));
  // Kalshi strike levels
@@ -865,22 +971,34 @@ async function loadKalshi(){
   let all=[];
   const errors=[];
 
-  // Only hit the recurring BTC series. This is dramatically lighter than
-  // downloading the entire open-market catalog on every refresh.
-  for(const s of ['KXBTC15M','KXBTCD']){
+  // One discovery request per cooldown window. The browser used to lose its
+  // in-memory cache on every reload, immediately hitting Kalshi again and
+  // making a 429 look permanent. Persisted cache/backoff prevents that.
+  const discoveryDue=Date.now()-kalshiLastDiscovery>=KALSHI_DISCOVERY_GAP;
+  if(!discoveryDue){
+    const cached15=getCachedKalshi('/events?limit=50&series_ticker=KXBTC15M&status=open&with_nested_markets=true',true);
+    const cached1h=getCachedKalshi('/events?limit=50&series_ticker=KXBTCD&status=open&with_nested_markets=true',true);
+    if(cached15)all.push(...flattenKalshiEvents(cached15.events||[]));
+    if(cached1h)all.push(...flattenKalshiEvents(cached1h.events||[]));
+  }else{
     try{
-      const events=await fetchKalshiEvents(s);
+      const events=await fetchKalshiEvents('KXBTC15M');
       all.push(...flattenKalshiEvents(events));
-    }catch(e){errors.push(s+' '+e.message)}
+      kalshiLastDiscovery=Date.now();
+      try{localStorage.setItem('jb_kalshi_last_discovery',String(kalshiLastDiscovery))}catch(_){}
+    }catch(e){errors.push('KXBTC15M '+e.message)}
+    // Only request the hourly series after the 15m series succeeds. This
+    // cuts the request burst in half when the upstream is throttling.
+    if(all.length){
+      try{
+        const events=await fetchKalshiEvents('KXBTCD');
+        all.push(...flattenKalshiEvents(events));
+      }catch(e){errors.push('KXBTCD '+e.message)}
+    }
   }
-
-  // Small compatibility fallback for environments where the hourly series is
-  // exposed under the legacy KXBTC series name.
   if(!all.length){
-    try{
-      const events=await fetchKalshiEvents('KXBTC');
-      all.push(...flattenKalshiEvents(events));
-    }catch(e){errors.push('KXBTC '+e.message)}
+    const cached15=getCachedKalshi('/events?limit=50&series_ticker=KXBTC15M&status=open&with_nested_markets=true',true);
+    if(cached15)all.push(...flattenKalshiEvents(cached15.events||[]));
   }
 
   const map=new Map();
@@ -911,8 +1029,8 @@ async function loadKalshi(){
   // Keep a small visible contract set. Only the two nearest contracts get
   // order-book/trade polling; the remaining two are market-metadata only.
   const candidates=[...groups.M15.slice(0,2),...groups.H1.slice(0,2),...groups.BTC.slice(0,1)].slice(0,5);
-  markets=candidates;
-  const microCandidates=candidates.slice(0,2);
+  if(candidates.length)markets=candidates;
+  const microCandidates=candidates.slice(0,1);
   await Promise.all(microCandidates.map(async m=>{
     try{
       const book=await fetchOrderBook(m.ticker);
@@ -949,9 +1067,9 @@ async function loadAll(){
   try{
     await loadKalshi();
   }catch(e){
-    markets=[];
-    $('kalshiStatus').textContent='Kalshi: unavailable • BTC chart still live';
-    $('kalshiDiag').textContent='Kalshi feed unavailable: '+e.message;
+    // Preserve the last good contracts while Kalshi is rate-limited.
+    $('kalshiStatus').textContent=markets.length?'Kalshi: cached • BTC chart still live':'Kalshi: unavailable • BTC chart still live';
+    $('kalshiDiag').textContent=markets.length?'Using last known Kalshi contracts while upstream cools down: '+e.message:'Kalshi feed unavailable: '+e.message;
   }
   try{await calculate()}catch(e){err('Engine error: '+e.message)}
 }
@@ -968,7 +1086,7 @@ setInterval(async()=>{
 setInterval(async()=>{
   if(paused||Date.now()<kalshiBackoffUntil)return;
   try{await loadKalshi();await calculate()}catch(_){}
-},60000);
+},120000);
 window.addEventListener('resize',()=>candles.length&&calculate());
 
 function setChartZoom(next){
