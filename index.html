@@ -507,7 +507,7 @@ async function loadBTC(){
   })).filter(r=>[r.t,r.o,r.h,r.l,r.c].every(Number.isFinite));
   if(!candles.length)throw Error('No BTC candles returned');
   price=candles.at(-1).c;
-  $('btc').textContent='$'+fmt(price,2);
+  $('price').textContent='$'+fmt(price,2);
   const first=candles[Math.max(0,candles.length-1-Math.round(1440/interval))]?.c||price;
   $('change').textContent=pct(price/first-1,2);
   $('change').className='big '+(price>=first?'green':'red');
