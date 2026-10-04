@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JB BTC Edge V8.1 • Live Kalshi Microstructure Sniper</title>
+<title>JB BTC Edge V8.2 • Live BTC Technical Dashboard</title>
 <style>
 :root{--bg:#090d12;--p:#101720;--p2:#151f2a;--t:#edf3fa;--m:#8e9bab;--l:#263444;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff;--o:#ff9f43}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
 header{padding:16px;border-bottom:1px solid var(--l);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 h1{margin:0;font-size:20px}.sub{color:var(--m);font-size:12px;margin-top:4px}.status{display:flex;gap:8px;align-items:center}.dot{width:9px;height:9px;border-radius:50%;background:var(--r)}.dot.on{background:var(--g)}
-main{max-width:1650px;margin:auto;padding:14px}.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+main{max-width:1900px;margin:auto;padding:14px}.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 button,select{background:var(--p2);color:var(--t);border:1px solid var(--l);border-radius:7px;padding:9px 10px}button{cursor:pointer}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
 .card{background:var(--p);border:1px solid var(--l);border-radius:10px;padding:12px}.hero{border-width:2px}
@@ -19,9 +19,9 @@ button,select{background:var(--p2);color:var(--t);border:1px solid var(--l);bord
 .note{color:var(--m);font-size:11px;line-height:1.5}.bar{height:7px;background:#202a35;border-radius:10px;overflow:hidden}.fill{height:100%;background:var(--g)}
 table{width:100%;border-collapse:collapse;background:var(--p);border:1px solid var(--l);border-radius:10px;overflow:hidden}
 th,td{padding:8px;border-bottom:1px solid var(--l);text-align:left;font-size:12px}th{background:var(--p2);color:var(--m);position:sticky;top:0}tr:last-child td{border:0}
-.sniper{display:grid;grid-template-columns:1.4fr repeat(6,1fr);gap:8px}.scorebox{font-size:30px;font-weight:800}.mini{font-size:11px;color:var(--m);margin-top:3px}
-canvas{width:100%;height:440px;display:block;background:var(--p);border:1px solid var(--l);border-radius:10px}
-.chartTools{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:0 0 8px}.chartTools button{min-width:42px;font-weight:700;padding:8px 11px}.chartZoomLabel{font-size:11px;color:var(--m);padding:0 4px}.chartWrap{position:relative}
+.scorebox{font-size:30px;font-weight:800}.mini{font-size:11px;color:var(--m);margin-top:3px}
+canvas{width:100%;height:900px;display:block;touch-action:none;background:var(--p);border:1px solid var(--l);border-radius:10px}
+.chartTools{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:0 0 8px}.chartTools button{min-width:42px;font-weight:700;padding:8px 11px}.chartZoomLabel{font-size:11px;color:var(--m);padding:0 4px}.chartWrap{position:relative;position:relative}
 .chartHint{position:absolute;right:12px;top:10px;padding:6px 9px;border:1px solid var(--l);border-radius:999px;background:rgba(12,19,27,.88);color:var(--m);font-size:11px;pointer-events:none;transition:opacity .25s}
 .chartHint.hidden{opacity:0}
 #chart{touch-action:none;cursor:crosshair}
@@ -36,9 +36,9 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 
 .patternGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.microGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.depth{font-family:monospace;font-size:11px;line-height:1.55}.imbalance{font-size:25px;font-weight:800}.bookRow{display:flex;justify-content:space-between;border-bottom:1px solid var(--l);padding:4px 0}.buy{color:var(--g)}.sell{color:var(--r)}.patternTitle{font-size:20px;font-weight:800}.def{font-size:12px;line-height:1.55;color:var(--m);margin-top:7px}.metric{display:inline-block;margin:5px 5px 0 0;padding:5px 7px;background:var(--p2);border-radius:7px;font-size:11px}
 #error{display:none;margin-top:10px;padding:10px;border:1px solid #59323a;background:#1b1115;border-radius:8px;color:#ff9aa4;font-size:12px}
-@media(max-width:1150px){.grid5{grid-template-columns:repeat(3,1fr)}.sniper{grid-template-columns:repeat(3,1fr)}.microGrid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:750px){.grid{grid-template-columns:repeat(2,1fr)}.grid5,.patternGrid{grid-template-columns:1fr 1fr}.sniper{grid-template-columns:1fr 1fr}th:nth-child(n+8),td:nth-child(n+8){display:none}}
-@media(max-width:500px){.grid,.grid5,.sniper,.patternGrid,.microGrid{grid-template-columns:1fr}}
+@media(max-width:1150px){.grid5{grid-template-columns:repeat(3,1fr)}.microGrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:750px){.grid{grid-template-columns:repeat(2,1fr)}.grid5,.patternGrid{grid-template-columns:1fr 1fr}th:nth-child(n+8),td:nth-child(n+8){display:none}}
+@media(max-width:500px){.grid,.grid5,.patternGrid,.microGrid{grid-template-columns:1fr}}
 
 .microHead{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 .microBadge{font-size:11px;padding:5px 8px;border:1px solid var(--l);border-radius:999px;background:var(--p2)}
@@ -54,19 +54,15 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </head>
 <body>
 <header>
-<div><h1>JB BTC Edge V8.1 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
+<div><h1>JB BTC Edge V8.2 • Live BTC Technical Dashboard</h1><div class="sub">VWAP 0.8σ / 3.6σ • dynamic support/resistance • pivots • pattern confirmation</div></div>
 <div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
 </header>
 <main>
 <div class="controls">
 <select id="tf"><option value="1">1m</option><option value="5" selected>5m</option><option value="15">15m</option><option value="60">1h</option></select>
-<select id="window"><option value="all" selected>15m + hourly</option><option value="15m">15m only</option><option value="1h">Hourly only</option></select>
 <button id="refresh">Refresh</button><button id="pause">Pause live</button>
-<span class="pill" id="kalshiStatus">Kalshi: connecting…</span><span class="pill" id="kalshiDiag">Feed diagnostics: starting…</span>
 </div>
 <div id="error"></div>
-<div id="kalshiBridgeNote" class="note" style="margin:7px 0 0">Kalshi public REST is separate from Kraken. If this GitHub Pages origin is blocked by Kalshi CORS, use the companion <b>kalshi-proxy.js</b> bridge; the app will read it from <code>localStorage.jb_kalshi_bridge</code>.</div>
-
 <div class="grid">
 <div class="card"><div class="label">Live BTC</div><div id="price" class="big">—</div></div>
 <div class="card"><div class="label">24h Change</div><div id="change" class="big">—</div></div>
@@ -85,26 +81,6 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 <div class="card" style="margin-top:10px"><div class="label">VWAP Position</div><div id="vwapRegime" class="signal yellow">WAITING</div><div id="vwapReason" class="note">Waiting for candles.</div></div>
 </div>
 
-<div class="section"><h2>🔥 JB Kalshi Sniper</h2>
-<div class="sniper">
-<div class="card hero"><div class="label">Best Contract</div><div id="bestCall" class="signal yellow">SCANNING…</div><div id="bestTicker" class="mini">—</div></div>
-<div class="card"><div class="label">Model Probability</div><div id="bestProb" class="big cyan">—</div></div>
-<div class="card"><div class="label">Market Price</div><div id="bestMarket" class="big">—</div></div>
-<div class="card"><div class="label">Edge</div><div id="bestEdge" class="big yellow">—</div></div>
-<div class="card"><div class="label">Time Left</div><div id="bestTime" class="big">—</div></div>
-<div class="card"><div class="label">Activity Score</div><div id="bestActivity" class="big">—</div></div>
-<div class="card"><div class="label">Confidence</div><div id="bestConfidence" class="scorebox yellow">—</div></div>
-</div>
-<div class="card" style="margin-top:10px"><div class="label">Why This Call?</div><div id="bestWhy" class="note">Waiting for live market data.</div></div>
-</div>
-
-<div class="section"><h2>Current Kalshi BTC Markets</h2>
-<table><thead><tr><th>Window</th><th>Strike</th><th>YES</th><th>Model P</th><th>Edge</th><th>Spread</th><th>Volume</th><th>Vol Δ</th><th>OI</th><th>Liquidity</th><th>Time</th><th>Decision</th></tr></thead>
-<tbody id="markets"></tbody></table>
-</div>
-<div class="section"><h2>📚 Kalshi Order-Book / Flow Engine</h2>
-<div class="microGrid">
-<div class="card"><div class="label">YES Depth</div><div id="yesDepth" class="big green">—</div><div id="yesDepthSub" class="mini">—</div></div>
 <div class="card"><div class="label">NO Depth</div><div id="noDepth" class="big red">—</div><div id="noDepthSub" class="mini">—</div></div>
 <div class="card"><div class="label">Book Imbalance</div><div id="bookImbalance" class="imbalance yellow">—</div><div id="bookImbalanceSub" class="mini">—</div></div>
 <div class="card"><div class="label">Trade Flow</div><div id="tradeFlow" class="big yellow">—</div><div id="tradeFlowSub" class="mini">—</div></div>
@@ -129,11 +105,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
     <div class="ladderCol"><div class="label">NO Depth Ladder</div><div id="noLadder">Waiting…</div></div>
   </div>
 </div>
-<div class="card" style="margin-top:10px">
-  <div class="label">⚡ V8.0 Sniper Trigger</div>
-  <div id="sniperTrigger" class="trigger yellow">SCANNING…</div>
-  <div id="sniperReason" class="triggerSmall">The trigger combines model edge, VWAP regime, pattern confirmation, volume, order-book imbalance, flow delta, liquidity behavior and time-to-expiry.</div>
-</div>
+
 
 </div>
 <div class="section"><h2>📐 Pattern Recognition Engine</h2>
@@ -143,13 +115,14 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </div>
 </div>
 
-<div class="section"><h2>📈 BTC Chart • Patterns + VWAP + Kalshi Levels</h2>
+<div class="section"><h2>📈 BTC Chart • Patterns + VWAP + Dynamic S/R + Pivots</h2>
 <div class="chartTools">
  <button id="chartZoomOut" type="button" aria-label="Zoom out chart">−</button>
  <button id="chartZoomIn" type="button" aria-label="Zoom in chart">+</button>
- <button id="chartZoomReset" type="button">Reset</button>
+ <button id="chartZoomReset" type="button">Reset Zoom</button>
+ <button id="srReset" type="button">Reset S/R</button>
  <span id="chartZoomLabel" class="chartZoomLabel">120 candles</span>
- <span class="chartZoomLabel">Scroll/pinch to zoom • drag not required • tap a candle for details</span>
+ <span class="chartZoomLabel">Scroll/pinch to zoom • drag S/R labels anywhere • drag the S/R line to move its price • tap a candle for details</span>
 </div>
 <div class="chartWrap">
 <canvas id="chart" aria-label="Interactive BTC candlestick chart. Tap or click a candle for details."></canvas>
@@ -172,47 +145,20 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </div>
 
 <div class="section"><div class="card"><div class="label">Data Notes</div><div class="note">
-BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V8.1 adds a rolling order-book depth/imbalance history and interactive candle inspection, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled. GitHub Pages cannot bypass Kalshi browser CORS, so Kalshi reads use direct public API requests first and a read-only CORS relay fallback when the browser blocks them. This is still an analytical model, not the official Kalshi probability or settlement feed.
+BTC candles use Kraken public data for technical calculations. Technical levels are model-derived from price, volume, volatility, swing structure, prior-session pivots and dynamic clustering. Support/resistance lines are calculated dynamically; labels can be dragged anywhere on the chart, and dragging a level line changes its price. Both reset with Reset S/R.
 </div></div></div>
 </main>
 
 <script>
-const KBASES=[
-  // Kalshi's production public API is available on both hosts; keep both as
-  // fallbacks because availability/CORS behavior can differ by network.
-  {name:'EXTERNAL',base:'https://external-api.kalshi.com/trade-api/v2'},
-  {name:'ELECTIONS',base:'https://api.elections.kalshi.com/trade-api/v2'}
-];
-let KBASE=KBASES[0].base;
-let kalshiTransport='—';
-let kalshiLastError='';
-// Kalshi is rate-limited upstream, so keep a short browser-side cache and
-// back off automatically after HTTP 429 responses. Cached data can still be
-// used while the upstream limit cools down.
-const kalshiCache=new Map();
-let kalshiBackoffUntil=Number(localStorage.getItem('jb_kalshi_backoff_until')||0);
-let kalshiBackoffMs=Number(localStorage.getItem('jb_kalshi_backoff_ms')||0);
-const KALSHI_CACHE_TTL=30000;
-const KALSHI_STALE_TTL=900000;
-const KALSHI_DISCOVERY_GAP=60000;
-let kalshiLastDiscovery=Number(localStorage.getItem('jb_kalshi_last_discovery')||0);
-try{
-  const saved=JSON.parse(localStorage.getItem('jb_kalshi_cache_v81')||'[]');
-  if(Array.isArray(saved))saved.forEach(x=>{if(x&&x.key&&x.time)kalshiCache.set(x.key,{time:x.time,data:x.data})});
-}catch(_){}
 const KRAKEN='https://api.kraken.com/0/public';
 const WS='wss://ws.kraken.com/v2';
 // GitHub Pages is static, so it cannot act as a server-side CORS proxy.
-// Leave this blank for direct public API access. If the browser blocks Kalshi,
-// deploy the companion kalshi-proxy.js Worker and paste its URL here.
-const KALSHI_BRIDGE='https://jb-kalshi-proxy.jbrett1337.workers.dev';
 
 // Core runtime state/helpers. These must exist before the startup call at the
 // bottom of the page; without them the dashboard stops before the first API
 // request and remains stuck on "Connecting…".
 let candles=[];
 let price=0;
-let markets=[];
 let paused=false;
 let ws=null;
 let reconnect=null;
@@ -236,116 +182,6 @@ function err(msg){
   if(e){e.textContent=String(msg||'');e.style.display=msg?'block':'none'}
 }
 
-function kalshiUrl(path,base){
-  const b=String(base||'').replace(/\/$/,'');
-  const p=String(path||'').replace(/^\/+/,'');
-  if(!b)return '/'+p;
-  // Cloudflare Worker accepts /markets, /events, /series directly.
-  // Kalshi API hosts need the trade-api/v2 prefix.
-  if(b.includes('workers.dev')) return b+'/'+p;
-  return b+'/'+p;
-}
-
-async function fetchWithTimeout(url,ms=9000){
-  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms);
-  try{return await fetch(url,{cache:'no-store',signal:ctl.signal})}
-  finally{clearTimeout(timer)}
-}
-async function readJsonResponse(r,label){
-  if(!r.ok){
-    const e=Error(`${label} HTTP ${r.status}`);
-    e.status=r.status;
-    const retry=Number(r.headers.get('retry-after'));
-    e.retryAfter=Number.isFinite(retry)&&retry>0?retry:0;
-    throw e;
-  }
-  const text=await r.text();
-  try{return JSON.parse(text)}catch(_){throw Error(`${label} non-JSON response`)}
-}
-function kalshiCacheKey(path){
-  const p=String(path).replace(/^\/+/, '/');
-  return p.replace(/([?&])cursor=[^&]*/,'$1cursor=CURSOR');
-}
-function getCachedKalshi(path,allowStale=false){
-  const hit=kalshiCache.get(kalshiCacheKey(path));
-  if(!hit)return null;
-  const age=Date.now()-hit.time;
-  if(age<=KALSHI_CACHE_TTL || (allowStale&&age<=KALSHI_STALE_TTL))return hit.data;
-  return null;
-}
-function setKalshiCache(path,data){
-  const key=kalshiCacheKey(path);
-  kalshiCache.set(key,{time:Date.now(),data});
-  try{
-    const arr=[...kalshiCache.entries()].slice(-12).map(([key,v])=>({key,time:v.time,data:v.data}));
-    localStorage.setItem('jb_kalshi_cache_v81',JSON.stringify(arr));
-  }catch(_){}
-}
-function noteKalshi429(e){
-  const serverSec=Number(e?.retryAfter||0);
-  kalshiBackoffMs=serverSec>0?serverSec*1000:Math.min(Math.max(kalshiBackoffMs*2,10000),60000);
-  if(!kalshiBackoffMs)kalshiBackoffMs=10000;
-  kalshiBackoffUntil=Date.now()+kalshiBackoffMs;
-  try{localStorage.setItem('jb_kalshi_backoff_until',String(kalshiBackoffUntil));localStorage.setItem('jb_kalshi_backoff_ms',String(kalshiBackoffMs))}catch(_){}
-}
-async function getJson(pathOrUrl){
-  const path=String(pathOrUrl).startsWith('http')
-    ?String(pathOrUrl).replace(/^https:\/\/[^/]+\/trade-api\/v2/,'')
-    :String(pathOrUrl);
-  const cached=getCachedKalshi(path);
-  if(cached)return cached;
-
-  if(Date.now()<kalshiBackoffUntil){
-    const stale=getCachedKalshi(path,true);
-    if(stale)return stale;
-    throw Error(`Kalshi rate-limited; retrying in ${Math.ceil((kalshiBackoffUntil-Date.now())/1000)}s`);
-  }
-
-  const directErrors=[];
-  const request=async(url,label)=>{
-    try{
-      const data=await readJsonResponse(await fetchWithTimeout(url),label);
-      setKalshiCache(path,data);
-      kalshiBackoffMs=0;kalshiBackoffUntil=0;kalshiLastError='';
-      kalshiLastDiscovery=Date.now();
-      try{localStorage.setItem('jb_kalshi_backoff_until','0');localStorage.setItem('jb_kalshi_backoff_ms','0');localStorage.setItem('jb_kalshi_last_discovery',String(kalshiLastDiscovery))}catch(_){}
-      return data;
-    }catch(e){
-      if(e?.status===429)noteKalshi429(e);
-      throw e;
-    }
-  };
-
-  if(KALSHI_BRIDGE){
-    try{
-      const data=await request(kalshiUrl(path,KALSHI_BRIDGE),'BRIDGE');
-      KBASE=KALSHI_BRIDGE;kalshiTransport='BRIDGE';
-      return data;
-    }catch(e){
-      directErrors.push(`BRIDGE ${e?.message||'failed'}`);
-      const stale=getCachedKalshi(path,true);
-      if(stale)return stale;
-      // A 429 from the bridge is an upstream Kalshi limit. Do not hammer a
-      // second Kalshi host immediately after it.
-      if(e?.status===429)throw Error(directErrors.join(' | '));
-    }
-  }
-
-  for(const host of [KBASES[1],KBASES[0]]){
-    try{
-      const data=await request(kalshiUrl(path,host.base),host.name);
-      KBASE=host.base;kalshiTransport=host.name;
-      return data;
-    }catch(e){
-      directErrors.push(`${host.name} ${e?.message||'network/CORS error'}`);
-      const stale=getCachedKalshi(path,true);
-      if(stale)return stale;
-      if(e?.status===429)break;
-    }
-  }
-  kalshiLastError=directErrors.join(' | ');
-  throw Error(`Kalshi unavailable — ${kalshiLastError}`);
-}
 function returns(){let a=[];for(let i=1;i<candles.length;i++)a.push(Math.log(candles[i].c/candles[i-1].c));return a}
 function ema(n){if(candles.length<n)return price;let e=mean(candles.slice(0,n).map(x=>x.c)),k=2/(n+1);for(let i=n;i<candles.length;i++)e=candles[i].c*k+e*(1-k);return e}
 function rsi(n=14){if(candles.length<n+1)return 50;let g=0,l=0;for(let i=candles.length-n;i<candles.length;i++){let d=candles[i].c-candles[i-1].c;if(d>=0)g+=d;else l-=d}return l?100-100/(1+g/l):100}
@@ -447,204 +283,7 @@ function renderPattern(p,t){
  return p;
 }
 
-function marketType(m){
-  const s=String(m.series_ticker||m.ticker||'').toUpperCase();
-  const o=Date.parse(m.open_time||'')||0,c=Date.parse(m.close_time||m.expiration_time||'')||0;
-  const w=o&&c&&c>o?(c-o)/60000:NaN;
-  if(s==='KXBTC15M'||s.includes('BTC15M')||(Number.isFinite(w)&&w<=25))return'15m';
-  if(s==='KXBTC'||s.includes('KXBTC-'))return Number.isFinite(w)&&w>=40&&w<=80?'1h':'other';
-  return Number.isFinite(w)&&w>=40&&w<=80?'1h':'other';
-}
-function strike(m){for(const k of ['floor_strike','strike_price','floor_strike_dollars','strike']){let n=Number(m[k]);if(Number.isFinite(n))return n}let t=String(m.ticker||'');let x=t.match(/T(\d+(?:\.\d+)?)/);return x?Number(x[1]):NaN}
-function yes(m){const b=Number(m.yes_bid_dollars),a=Number(m.yes_ask_dollars),l=Number(m.last_price_dollars);if(Number.isFinite(b)&&Number.isFinite(a))return(b+a)/2;if(Number.isFinite(l))return l;if(Number.isFinite(b))return b;return .5}
-function minutesLeft(m){const t=Date.parse(m.close_time||m.expiration_time||'');return Math.max(0,(t-Date.now())/60000)}
-function logistic(x){return 1/(1+Math.exp(-x))}
-function contractProbability(m,t){
- const k=strike(m);if(!Number.isFinite(k))return t.up;
- const mins=minutesLeft(m);if(mins<=0)return price>=k?1:0;
- const atrp=Math.max(atr()/price,.0008),baseVol=Math.max(Math.sqrt(returns().slice(-96).reduce((s,x)=>s+x*x,0)/Math.max(returns().slice(-96).length,1))*Math.sqrt(1440/Number($('tf').value)),atrp);
- const horizon=Math.max(mins/60,.03),sigma=baseVol*Math.sqrt(horizon/24);
- const trend=(t.z*.0009)*Math.sqrt(mins);
- const drift=price*(1+clamp(trend,-.012,.012));
- const z=(drift-k)/(Math.max(price*sigma,price*.0005));
- let p=logistic(z*1.65);
- const v=t.v.ratio;if(v>1.5)p+=.025*Math.sign(t.up-.5);if(v<.6)p-=.02*Math.sign(t.up-.5);
- if(t.regime==='EXTREME UPPER'&&k>price)p+=.025; if(t.regime==='EXTREME LOWER'&&k<price)p-=.025;
- return clamp(p,.01,.99);
-}
-function normalizeBookSide(a){
-  return Array.isArray(a)
-    ? a.map(x=>({p:Number(x?.[0]),q:Number(x?.[1])}))
-      .filter(x=>Number.isFinite(x.p)&&Number.isFinite(x.q)&&x.q>0)
-    : [];
-}
-function orderBookStats(book){
-  const ob=book?.orderbook_fp||book?.orderbook||book||{};
-  const yes=normalizeBookSide(ob.yes_dollars||ob.yes||[]);
-  const no=normalizeBookSide(ob.no_dollars||ob.no||[]);
-  const sum=a=>a.reduce((z,x)=>z+x.q,0),yd=sum(yes),nd=sum(no),tot=yd+nd||1;
-  const topYes=yes[0]?.p,topNo=no[0]?.p;
-  return{
-    yesDepth:yd,noDepth:nd,imbalance:(yd-nd)/tot,
-    topYes:Number.isFinite(topYes)?topYes:NaN,
-    topNo:Number.isFinite(topNo)?topNo:NaN,yes,no
-  };
-}
-function tradeFlowStats(trades){
- const a=Array.isArray(trades)?trades:(trades?.trades||[]);let yes=0,no=0;
- a.forEach(t=>{
-   const q=Number(t.count_fp??t.count??t.quantity??t.qty??0);
-   const side=String(t.taker_side??t.side??t.takerSide??'').toLowerCase();
-   if(side==='yes'||side==='buy'||side==='buy_yes')yes+=q;
-   else if(side==='no'||side==='sell'||side==='buy_no')no+=q;
- });
- let tot=yes+no||1;
- return{yes,no,count:a.length,ratio:(yes-no)/tot};
-}
-function microStats(m){
- const b=orderBookStats(m._book),f=tradeFlowStats(m._trades),ticker=m.ticker||'';
- const prev=m._prevBook||null, old=prev?orderBookStats(prev):null;
- const depthDelta=old?((b.yesDepth+b.noDepth)-(old.yesDepth+old.noDepth))/(old.yesDepth+old.noDepth||1):0;
- const yesDelta=old?(b.yesDepth-old.yesDepth)/(old.yesDepth||1):0;
- const noDelta=old?(b.noDepth-old.noDepth)/(old.noDepth||1):0;
- const hist=microHistory.get(ticker)||[];
- const flowHist=flowHistory.get(ticker)||[];
- const now=Date.now();
- hist.push({t:now,yes:b.yesDepth,no:b.noDepth,total:b.yesDepth+b.noDepth,imb:b.imbalance,bookRaw:m._book});
- flowHist.push({t:now,ratio:f.ratio,yes:f.yes,no:f.no});
- while(hist.length&&now-hist[0].t>120000)hist.shift();
- while(flowHist.length&&now-flowHist[0].t>120000)flowHist.shift();
- microHistory.set(ticker,hist);flowHistory.set(ticker,flowHist);
- const recent=hist.filter(x=>now-x.t<=30000),old30=hist.filter(x=>now-x.t>30000&&now-x.t<=90000);
- const avgRecent=mean(recent.map(x=>x.total)),avgOld=mean(old30.map(x=>x.total));
- const liquidityChange=avgOld?avgRecent/avgOld-1:depthDelta;
- const pull=Math.max(0,-Math.min(yesDelta,noDelta));
- const stack=Math.max(0,Math.max(yesDelta,noDelta));
- m._prevBook=m._book||null;
- return {...b,flow:f,depthDelta,yesDelta,noDelta,liquidityChange,pull,stack,hist,flowHist};
-}
-function activity(m){
- const vol=Number(m.volume_fp??m.volume??0),oi=Number(m.open_interest_fp??m.open_interest??0),liq=Number(m.liquidity_dollars??m.liquidity??0);
- const bid=Number(m.yes_bid_dollars),ask=Number(m.yes_ask_dollars),spread=Number.isFinite(bid)&&Number.isFinite(ask)?Math.max(0,ask-bid):.05;
- const prev=lastVol.get(m.ticker)||vol,delta=prev?vol/Math.max(prev,1)-1:0;lastVol.set(m.ticker,vol);
- const micro=microStats(m),book=micro,flow=micro.flow;
- const v=clamp(Math.log10(vol+1)/7,0,1),o=clamp(Math.log10(oi+1)/6,0,1),l=clamp(Math.log10(liq+1)/6,0,1),sp=1-clamp(spread/.12,0,1),depth=clamp(Math.log10(book.yesDepth+book.noDepth+1)/7,0,1);
- const score=100*(.18*v+.12*o+.10*l+.12*sp+.16*depth+.10*Math.abs(book.imbalance)+.08*Math.abs(flow.ratio)+.07*clamp(Math.abs(book.liquidityChange)*4,0,1)+.07*clamp((book.pull+book.stack)*2,0,1));
- return{vol,oi,liq,spread,delta,book,flow,micro,score};
-}
-function sniperSignal(row,t,p){
- const edge=row.model-row.yesPrice;
- const patternBias=p?(p.dir==='bull'?1:p.dir==='bear'?-1:0):0;
- const regimeBias=t.regime.includes('UPPER')?1:t.regime.includes('LOWER')?-1:(price>=t.b.vw?1:-1);
- const microBias=clamp(row.activity.book.imbalance*.55+row.activity.flow.ratio*.45,-1,1);
- const liqBias=clamp(row.activity.book.liquidityChange*1.4,-1,1);
- const volBias=clamp((t.v.ratio-1)/1.5,-1,1);
- const confirmation=(p&&p.score>=85)?patternBias:0;
- const composite=clamp(
-   edge*7.0 + microBias*.14 + liqBias*.07 + volBias*.05 + confirmation*.09 + regimeBias*.025,
-   -1,1
- );
- const quality=clamp(
-   Math.abs(edge)*700 + row.activity.score*.32 + Math.abs(microBias)*18 + (p?.score||0)*.12,
-   0,100
- );
- let action='WAIT';
- if(row.mins<2)action='TOO LATE';
- else if(row.activity.score<25)action='LOW LIQ';
- else if(composite>=.55&&quality>=58)action='SNIPER YES';
- else if(composite<=-.55&&quality>=58)action='SNIPER NO';
- else if(composite>=.22)action='LEAN YES';
- else if(composite<=-.22)action='LEAN NO';
- else action='WAIT';
- return{action,composite,quality,edge,microBias,liqBias,volBias,patternBias,regimeBias};
-}
-function decision(row){
- const edge=row.model-row.yesPrice,a=row.activity;
- const bookBias=a.book.imbalance*.035+a.flow.ratio*.025;
- const liqBias=clamp(a.book.liquidityChange,-.25,.25)*.02;
- const penalty=a.score<35?Math.min(.06,(35-a.score)/600):0;
- const usable=edge+bookBias+liqBias-penalty;
- if(row.mins<2)return{txt:'⚪ TOO LATE',cls:'yellow'};
- if(a.score<25)return{txt:'⚠ LOW LIQ',cls:'orange'};
- if(usable>=.07)return{txt:'🟢 BUY YES',cls:'green'};
- if(usable<=-.07)return{txt:'🔴 BUY NO',cls:'red'};
- if(Math.abs(usable)<.035)return{txt:'⚪ WAIT',cls:'yellow'};
- return{txt:'🟡 WATCH',cls:'yellow'};
-}
-function scanMarkets(t){
- const filt=$('window').value;
- let rows=markets.filter(m=>{const typ=marketType(m);return typ!=='other'&&(filt==='all'||typ===filt)&&minutesLeft(m)>0});
- rows=rows.map(m=>{const y=yes(m),a=activity(m),mp=contractProbability(m,t),mins=minutesLeft(m),d=decision({model:mp,yesPrice:y,activity:a,mins});return{m,typ:marketType(m),strike:strike(m),yesPrice:y,model:mp,edge:mp-y,activity:a,mins,decision:d}})
- .sort((a,b)=>Math.abs(b.edge)*(.5+b.activity.score/100)-Math.abs(a.edge)*(.5+a.activity.score/100));
- $('markets').innerHTML=rows.slice(0,40).map(r=>`<tr><td>${r.typ}</td><td>${Number.isFinite(r.strike)?'$'+fmt(r.strike,0):'—'}</td><td>${Math.round(r.yesPrice*100)}¢</td><td>${Math.round(r.model*100)}%</td><td class="${r.edge>=.05?'green':r.edge<=-.05?'red':'yellow'}">${r.edge>=0?'+':''}${Math.round(r.edge*100)} pts</td><td>${Math.round(r.activity.spread*100)}¢</td><td>${r.activity.vol.toLocaleString()}</td><td class="${r.activity.delta>0?'green':r.activity.delta<0?'red':'yellow'}">${r.activity.delta>=0?'+':''}${pct(r.activity.delta,0)}</td><td>${r.activity.oi.toLocaleString()}</td><td>${Math.round(r.activity.liq).toLocaleString()}</td><td>${r.mins<60?Math.round(r.mins)+'m':(r.mins/60).toFixed(1)+'h'}</td><td class="${r.decision.cls}">${r.decision.txt}</td></tr>`).join('');
- return rows;
-}
-function renderLadder(el,side){
- const max=Math.max(...side.map(x=>x.q),1);
- return side.slice(0,8).map(x=>`<div class="ladderRow"><span>${Math.round(x.p*100)}¢</span><div class="ladderBar"><div class="ladderFill" style="width:${Math.min(100,x.q/max*100)}%;background:${x.p?'#55c7ff':'#8e9bab'}"></div></div><span>${Math.round(x.q).toLocaleString()}</span></div>`).join('')||'<div class="note">No depth</div>';
-}
-function drawHeatmap(r){
- const c=$('heatmap');if(!c)return;
- const ctx=c.getContext('2d'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
- const hist=r?.activity?.micro?.hist||[];
- const W=w,H=h,padL=45,padR=10,padT=16,padB=25;
- ctx.fillStyle='#0b1118';ctx.fillRect(0,0,w,h);
- if(hist.length<2){ctx.fillStyle='#8e9bab';ctx.font='11px Arial';ctx.fillText('Waiting for depth history…',padL,35);return}
- const maxD=Math.max(...hist.map(x=>x.total),1),minD=Math.min(...hist.map(x=>x.total),0),span=Math.max(1,maxD-minD);
- const x=i=>padL+i/Math.max(1,hist.length-1)*(w-padL-padR);
- hist.forEach((q,i)=>{
-   const xx=x(i), bar=clamp((q.total-minD)/span,0,1),imb=clamp(q.imb,-1,1);
-   ctx.fillStyle=imb>=0?'rgba(57,217,138,'+(0.10+Math.abs(imb)*.55)+')':'rgba(255,93,108,'+(0.10+Math.abs(imb)*.55)+')';
-   ctx.fillRect(xx, padT, Math.max(2,(w-padL-padR)/hist.length+1), H-padT-padB);
-   const yy=H-padB-bar*(H-padT-padB);
-   ctx.fillStyle='#55c7ff';ctx.fillRect(xx,yy,Math.max(2,(w-padL-padR)/hist.length+1),3);
- });
- ctx.strokeStyle='#263444';ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,H-padB);ctx.lineTo(w-padR,H-padB);ctx.stroke();
- ctx.fillStyle='#8e9bab';ctx.font='10px Arial';ctx.fillText('Depth / imbalance history',padL,11);
- ctx.fillText('older',padL,H-8);ctx.fillText('now',w-padR-20,H-8);
- ctx.fillText('high depth',padL+5,padT+12);ctx.fillText('low depth',padL+5,H-padB-4);
-}
-function updateV72(r,t,p){
- const m=r?.activity?.micro;
- if(!m){$('microState').textContent='WAITING FOR FLOW';return}
- const cls=v=>v>0?'green':v<0?'red':'yellow';
- $('depthDelta').textContent=(m.depthDelta>=0?'+':'')+pct(m.depthDelta,1);$('depthDelta').className='big '+cls(m.depthDelta);
- $('flowDelta').textContent=(m.flow.ratio>=0?'+':'')+pct(m.flow.ratio,1);$('flowDelta').className='big '+cls(m.flow.ratio);
- $('liqPull').textContent=pct(m.pull,1);$('liqPull').className='big '+(m.pull>.08?'red':'yellow');
- $('stacking').textContent=pct(m.stack,1);$('stacking').className='big '+(m.stack>.08?'green':'yellow');
- const sweep=(p&&p.name==='LIQUIDITY SWEEP')?'PATTERN SWEEP':'NONE';$('sweep').textContent=sweep;$('sweep').className='big '+(sweep==='NONE'?'yellow':p.dir==='bull'?'green':'red');
- const state=m.liquidityChange<-0.08?'LIQUIDITY PULL':m.liquidityChange>0.08?'LIQUIDITY STACKING':Math.abs(m.flow.ratio)>.18?'FLOW IMBALANCE':'BALANCED';
- $('microState').textContent=state;
- const sig=sniperSignal(r,t,p);
- const trigger=sig.action==='SNIPER YES'?'🟢 SNIPER YES':sig.action==='SNIPER NO'?'🔴 SNIPER NO':sig.action==='LEAN YES'?'🟢 LEAN YES':sig.action==='LEAN NO'?'🔴 LEAN NO':sig.action==='LOW LIQ'?'⚠ LOW LIQ':'⚪ WAIT';
- $('sniperTrigger').textContent=trigger;$('sniperTrigger').className='trigger '+(sig.action.includes('YES')?'green':sig.action.includes('NO')?'red':'yellow');
- $('sniperReason').textContent=`Composite ${(sig.composite*100).toFixed(0)} • quality ${Math.round(sig.quality)}/100 • edge ${(sig.edge*100).toFixed(1)} pts • micro ${Math.round(sig.microBias*100)} • liquidity ${Math.round(sig.liqBias*100)} • BTC volume ${t.v.ratio.toFixed(2)}× • pattern ${p?p.name:'none'}${p?' '+p.score+'%':''}.`;
- $('yesLadder').innerHTML=renderLadder($('yesLadder'),m.yes);
- $('noLadder').innerHTML=renderLadder($('noLadder'),m.no);
- drawHeatmap(r);
-}
-function best(rows,t,p){
- if(!rows.length){$('bestCall').textContent='NO ACTIVE CONTRACT';$('bestWhy').textContent='No active BTC contract data received from Kalshi.';return}
- const ranked=rows.map(r=>{
-   const pa=p?(p.dir==='bull'?.02:p.dir==='bear'?-0.02:0):0;
-   const micro=r.activity.book.imbalance*.035+r.activity.flow.ratio*.025;
-   const sig=sniperSignal(r,t,p);
-   const score=clamp(50+(r.edge+pa+micro)*180+r.activity.score*.22+Math.abs(sig.composite)*20+(r.mins>3?8:0),0,99);
-   return{...r,score,sig};
- }).sort((a,b)=>b.score-a.score);
- const r=ranked[0],b=r.activity.book,f=r.activity.flow;
- $('bestCall').textContent=r.decision.txt;$('bestCall').className='signal '+r.decision.cls;$('bestTicker').textContent=r.m.ticker||'—';$('bestProb').textContent=Math.round(r.model*100)+'%';$('bestMarket').textContent=Math.round(r.yesPrice*100)+'¢';
- $('bestEdge').textContent=(r.edge>=0?'+':'')+Math.round(r.edge*100)+' pts';$('bestEdge').className='big '+(r.edge>=.05?'green':r.edge<=-.05?'red':'yellow');$('bestTime').textContent=r.mins<60?Math.round(r.mins)+'m':(r.mins/60).toFixed(1)+'h';$('bestActivity').textContent=Math.round(r.activity.score)+'/100';$('bestConfidence').textContent=Math.round(r.score);
- $('yesDepth').textContent=b.yesDepth.toLocaleString();$('noDepth').textContent=b.noDepth.toLocaleString();$('yesDepthSub').textContent=Number.isFinite(b.topYes)?'Best YES bid '+Math.round(b.topYes*100)+'¢':'No YES book';$('noDepthSub').textContent=Number.isFinite(b.topNo)?'Best NO bid '+Math.round(b.topNo*100)+'¢':'No NO book';
- $('bookImbalance').textContent=(b.imbalance>=0?'+':'')+Math.round(b.imbalance*100)+'%';$('bookImbalance').className='imbalance '+(b.imbalance>.08?'green':b.imbalance<-.08?'red':'yellow');$('bookImbalanceSub').textContent=b.imbalance>0?'YES-side depth heavier':b.imbalance<0?'NO-side depth heavier':'Balanced book';
- $('tradeFlow').textContent=(f.ratio>=0?'+':'')+Math.round(f.ratio*100)+'%';$('tradeFlow').className='big '+(f.ratio>.08?'green':f.ratio<-.08?'red':'yellow');$('tradeFlowSub').textContent=`${f.count} recent trades • YES ${Math.round(f.yes).toLocaleString()} / NO ${Math.round(f.no).toLocaleString()}`;
- $('bookDetail').innerHTML=`<div class="bookRow"><span>YES depth</span><span class="buy">${b.yesDepth.toLocaleString()}</span></div><div class="bookRow"><span>NO depth</span><span class="sell">${b.noDepth.toLocaleString()}</span></div><div class="bookRow"><span>Depth imbalance</span><span>${(b.imbalance*100).toFixed(1)}%</span></div><div class="bookRow"><span>Recent trade flow</span><span>${(f.ratio*100).toFixed(1)}%</span></div><div class="bookRow"><span>Liquidity change</span><span>${(r.activity.micro.liquidityChange*100).toFixed(1)}%</span></div><div class="bookRow"><span>Liquidity pull / stack</span><span>${(r.activity.micro.pull*100).toFixed(1)}% / ${(r.activity.micro.stack*100).toFixed(1)}%</span></div><div class="bookRow"><span>Activity</span><span>${Math.round(r.activity.score)}/100</span></div>`;
- const st=Number.isFinite(r.strike)?`Strike $${fmt(r.strike,0)} • BTC $${fmt(price,0)}.`:'Strike unavailable.';
- $('bestWhy').textContent=`${st} Model ${Math.round(r.model*100)}% vs YES ${Math.round(r.yesPrice*100)}¢ = ${r.edge>=0?'+':''}${Math.round(r.edge*100)} pts. Book ${(b.imbalance*100).toFixed(1)}%; flow ${(f.ratio*100).toFixed(1)}%; liquidity ${(r.activity.micro.liquidityChange*100).toFixed(1)}%; volume ${r.activity.vol.toLocaleString()}; OI ${r.activity.oi.toLocaleString()}; ${p?`Pattern: ${p.name} (${p.score}%).`:''}`;
- updateV72(r,t,p);
- return r;
-}
-function render(t,p,rows){
+function render(t,p){
  const b=t.b,v=t.v;
  $('vwap').textContent='$'+fmt(b.vw);$('m36').textContent='$'+fmt(b.m36);$('m08').textContent='$'+fmt(b.m08);$('p08').textContent='$'+fmt(b.p08);$('p36').textContent='$'+fmt(b.p36);
  $('vwapRegime').textContent=t.regime;$('vwapRegime').className='signal '+(t.regime.includes('UPPER')||t.regime==='ABOVE VWAP'?'green':t.regime.includes('LOWER')||t.regime==='BELOW VWAP'?'red':'yellow');
@@ -652,7 +291,7 @@ function render(t,p,rows){
  $('volRatio').textContent=v.ratio.toFixed(2)+'×';$('volSub').textContent=`current ${v.cur.toLocaleString()} • avg ${Math.round(v.avg).toLocaleString()} • Δ ${pct(v.delta,0)}`;
  $('atr').textContent='$'+fmt(atr());$('trend').textContent=t.e9>t.e21&&t.e21>t.e50?'BULLISH':t.e9<t.e21&&t.e21<t.e50?'BEARISH':'MIXED';$('trend').className='signal '+($('trend').textContent==='BULLISH'?'green':$('trend').textContent==='BEARISH'?'red':'yellow');
  $('rsi').textContent=t.r.toFixed(1);$('structure').textContent=t.s;$('structure').className='signal '+(t.s==='BULLISH'?'green':t.s==='BEARISH'?'red':'yellow');$('btcVolume').textContent=v.ratio.toFixed(2)+'× avg';$('regimeScore').textContent=t.z.toFixed(2);
- renderPattern(p,t);best(rows,t,p);draw(t,p,rows);
+ renderPattern(p,t);draw(t,p);
 }
 let selectedCandleTs=null;
 let hoveredCandleIndex=null;
@@ -713,7 +352,7 @@ function updateCandleHover(clientX){
 }
 function drawCurrent(){
  if(!candles.length)return;
- try{const t=tech(),p=detectPatterns(),rows=scanMarkets(t);draw(t,p,rows)}catch(_){}
+ try{const t=tech(),p=detectPatterns();draw(t,p)}catch(_){}
 }
 function selectCandle(clientX){
  const hit=candleFromPointer(clientX);
@@ -723,12 +362,70 @@ function selectCandle(clientX){
  $('chartHint')?.classList.add('hidden');
  drawCurrent();
 }
+function srBoxGeometry(q,side,idx){
+ const c=$('chart');
+ const barW=132,barH=34;
+ const defaultX=c?.clientWidth?c.clientWidth-(chartView?.R||15)-barW-4:0;
+ const key=side+':'+idx;
+ const pos=srBoxPos[key]||{x:defaultX,y:0};
+ const yy=chartView.y(q.level);
+ const bx=clamp(pos.x,chartView.L+4,chartView.w-chartView.R-barW);
+ const by=clamp(pos.y||yy-barH/2,chartView.T,chartView.h-chartView.B-barH);
+ return {x:bx,y:by,w:barW,h:barH,lineY:yy,key};
+}
+function hitSRBox(clientX,clientY){
+ const c=$('chart');if(!chartView||!c)return null;
+ const r=c.getBoundingClientRect(),px=clientX-r.left,py=clientY-r.top;
+ const sr=srLevelsWithOverrides(dynamicSR(chartView.data,tech()));
+ for(const side of ['support','resistance']) for(let i=0;i<sr[side].length;i++){
+  const q=sr[side][i],g=srBoxGeometry(q,side,i);
+  if(px>=g.x&&px<=g.x+g.w&&py>=g.y&&py<=g.y+g.h)return {type:'box',side,idx:i,level:q.level,...g};
+ }
+ // A thicker hit area around the actual S/R line lets the user reposition the level price.
+ for(const side of ['support','resistance']) for(let i=0;i<sr[side].length;i++){
+  const q=sr[side][i],yy=chartView.y(q.level);
+  if(Math.abs(py-yy)<=7 && px>=chartView.L && px<=chartView.w-chartView.R)return {type:'line',side,idx:i,level:q.level,lineY:yy};
+ }
+ return null;
+}
+function startSRDrag(e){
+ const hit=hitSRBox(e.clientX,e.clientY);if(!hit)return;
+ draggingSR=hit;srDragStartY=e.clientY;srDragStartLevel=hit.level;
+ if(hit.type==='box'){
+  srDragStartX=e.clientX;srDragBoxX=hit.x;srDragBoxY=hit.y;
+  $('chart').style.cursor='grabbing';
+ }else $('chart').style.cursor='ns-resize';
+ $('chart').setPointerCapture?.(e.pointerId);e.preventDefault();
+}
+function moveSRDrag(e){
+ if(!draggingSR||!chartView)return;
+ if(draggingSR.type==='box'){
+  const dx=e.clientX-srDragStartX,dy=e.clientY-srDragStartY;
+  const barW=132,barH=34;
+  const x=clamp(srDragBoxX+dx,chartView.L+4,chartView.w-chartView.R-barW);
+  const y=clamp(srDragBoxY+dy,chartView.T,chartView.h-chartView.B-barH);
+  srBoxPos[draggingSR.side+':'+draggingSR.idx]={x,y};
+  drawCurrent();return;
+ }
+ const dy=e.clientY-srDragStartY;
+ const pixelsPerPrice=chartView.PH/Math.max(1,chartView.mx-chartView.mn);
+ const level=clamp(srDragStartLevel-dy/pixelsPerPrice,chartView.mn,chartView.mx);
+ manualSR[draggingSR.side][draggingSR.idx]=level;drawCurrent();
+}
+function endSRDrag(e){
+ if(!draggingSR)return;draggingSR=null;$('chart').style.cursor='';
+ try{$('chart').releasePointerCapture?.(e.pointerId)}catch(_){}
+}
+function resetManualSR(){manualSR.support=[];manualSR.resistance=[];for(const k of Object.keys(srBoxPos))delete srBoxPos[k];drawCurrent();}
 function initChartInteractions(){
  const c=$('chart');if(!c||c.dataset.interactive)return;c.dataset.interactive='1';
- c.addEventListener('pointermove',e=>updateCandleHover(e.clientX));
- c.addEventListener('pointerleave',()=>{hoveredCandleIndex=null;drawCurrent()});
- c.addEventListener('pointerup',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;selectCandle(e.clientX)});
- c.addEventListener('click',e=>{if(e.detail===0)selectCandle(e.clientX)});
+ let dragMoved=false;
+ c.addEventListener('pointerdown',e=>{const hit=hitSRBox(e.clientX,e.clientY);if(hit){dragMoved=true;startSRDrag(e)}});
+ c.addEventListener('pointermove',e=>{if(draggingSR){moveSRDrag(e);return}updateCandleHover(e.clientX)});
+ c.addEventListener('pointerleave',()=>{if(!draggingSR){hoveredCandleIndex=null;drawCurrent()}});
+ c.addEventListener('pointerup',e=>{if(draggingSR){endSRDrag(e);return}if(e.pointerType==='mouse'&&e.button!==0)return;if(!dragMoved)selectCandle(e.clientX);dragMoved=false});
+ c.addEventListener('click',e=>{if(e.detail===0&&!dragMoved)selectCandle(e.clientX)});
+ c.addEventListener('pointermove',e=>{if(!draggingSR){const hit=hitSRBox(e.clientX,e.clientY);c.style.cursor=hit?(hit.type==='box'?'grab':'ns-resize'):'';}},{passive:true});
 }
 
 function previousSessionOHLC(){
@@ -803,38 +500,64 @@ function drawPivotLines(ctx,piv,y,L,R,w){
   const yy=y(val);ctx.save();ctx.strokeStyle=col;ctx.lineWidth=name==='PP'?1.8:1;ctx.setLineDash(name==='PP'?[]:[7,5]);ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.font='bold 9px Arial';ctx.fillText(name+' $'+fmt(val,0),L+5,yy+10);ctx.restore();
  });
 }
+const manualSR={support:[],resistance:[]};
+let draggingSR=null;
+let srDragStartY=0;
+let srDragStartX=0;
+let srDragStartLevel=0;
+let srDragBoxX=0;
+let srDragBoxY=0;
+const srBoxPos={};
+function srLevelsWithOverrides(sr){
+  const out={support:(sr.support||[]).map((q,i)=>({...q,level:Number.isFinite(manualSR.support[i])?manualSR.support[i]:q.level,manual:i<manualSR.support.length})),resistance:(sr.resistance||[]).map((q,i)=>({...q,level:Number.isFinite(manualSR.resistance[i])?manualSR.resistance[i]:q.level,manual:i<manualSR.resistance.length})),pivots:sr.pivots,fibPivots:sr.fibPivots,tolerance:sr.tolerance};
+  return out;
+}
 function drawSRBars(ctx,sr,y,L,R,w){
  const drawGroup=(levels,isSupport)=>{
   levels.forEach((q,idx)=>{
-   const yy=y(q.level),barW=104,barH=28,bx=w-R-barW-4,by=clamp(yy-barH/2,chartView.T,chartView.h-chartView.B-barH);
+   const yy=y(q.level),g=srBoxGeometry(q,isSupport?'support':'resistance',idx),bx=g.x,by=g.y,barW=g.w,barH=g.h;
+   q._hit={x:bx,y:by,w:barW,h:barH,side:isSupport?'support':'resistance',idx};
    ctx.save();
-   ctx.fillStyle=isSupport?'rgba(57,217,138,.10)':'rgba(255,93,108,.10)';
-   ctx.strokeStyle=isSupport?'rgba(57,217,138,.55)':'rgba(255,93,108,.55)';ctx.lineWidth=1;
-   const zone=Math.max(4,Math.min(12,chartView.PH*.006));ctx.fillRect(L,yy-zone/2,w-R-L,zone);ctx.strokeRect(L,yy-zone/2,w-R-L,zone);
-   ctx.fillStyle='rgba(10,15,22,.94)';ctx.fillRect(bx,by,barW,barH);ctx.strokeStyle=isSupport?'#39d98a':'#ff5d6c';ctx.strokeRect(bx,by,barW,barH);
-   ctx.fillStyle=isSupport?'#39d98a':'#ff5d6c';ctx.font='bold 10px Arial';ctx.fillText((isSupport?'S':'R')+(idx+1)+' $'+fmt(q.level,0),bx+6,by+11);
-   const bw=barW-12,bh=4,bx2=bx+6,by2=by+18;ctx.fillStyle='#263444';ctx.fillRect(bx2,by2,bw,bh);ctx.fillStyle=isSupport?'#39d98a':'#ff5d6c';ctx.fillRect(bx2,by2,bw*q.strength/100,bh);
-   ctx.fillStyle='#9aa8b8';ctx.font='9px Arial';ctx.fillText(q.strength+'% • '+q.touches+' touch'+(q.touches===1?'':'es'),bx+barW-59,by+11);ctx.restore();
+   // Full-width dynamic support/resistance line.
+   ctx.strokeStyle=isSupport?'rgba(57,217,138,.90)':'rgba(255,93,108,.90)';
+   ctx.lineWidth=q.manual?2.8:2;
+   ctx.setLineDash(q.manual?[]:[8,5]);
+   ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.setLineDash([]);
+   // Soft zone around the level.
+   ctx.fillStyle=isSupport?'rgba(57,217,138,.045)':'rgba(255,93,108,.045)';
+   const zone=Math.max(4,Math.min(12,chartView.PH*.007));
+   ctx.fillRect(L,yy-zone/2,w-R-L,zone);
+   // Connector from the movable label box to its actual price line.
+   const anchorX=bx<=(w-R+L)/2?bx+barW:bx;
+   ctx.strokeStyle=isSupport?'rgba(57,217,138,.45)':'rgba(255,93,108,.45)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+   ctx.beginPath();ctx.moveTo(anchorX,by+barH/2);ctx.lineTo(anchorX,yy);ctx.lineTo(bx<=(w-R+L)/2?Math.min(w-R,anchorX+18):Math.max(L,anchorX-18),yy);ctx.stroke();ctx.setLineDash([]);
+   // Movable indicator box.
+   ctx.fillStyle='rgba(10,15,22,.97)';ctx.fillRect(bx,by,barW,barH);
+   ctx.strokeStyle=isSupport?'#39d98a':'#ff5d6c';ctx.lineWidth=1.2;ctx.strokeRect(bx,by,barW,barH);
+   ctx.fillStyle=isSupport?'#39d98a':'#ff5d6c';ctx.font='bold 10px Arial';
+   ctx.fillText((isSupport?'S':'R')+(idx+1)+' $'+fmt(q.level,0)+(q.manual?' • M':''),bx+6,by+12);
+   const bw=barW-12,bh=5,bx2=bx+6,by2=by+20;ctx.fillStyle='#263444';ctx.fillRect(bx2,by2,bw,bh);ctx.fillStyle=isSupport?'#39d98a':'#ff5d6c';ctx.fillRect(bx2,by2,bw*clamp(q.strength/100,0,1),bh);
+   ctx.fillStyle='#9aa8b8';ctx.font='9px Arial';ctx.fillText(q.strength+'% • '+q.touches+' touch'+(q.touches===1?'':'es'),bx+6,by+32);
+   ctx.restore();
   });
  };
  drawGroup(sr.support,true);drawGroup(sr.resistance,false);
 }
-function draw(t,p,rows){
+
+function draw(t,p){
  const c=$('chart'),ctx=c.getContext('2d'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
  const visibleCount=clamp(Math.round(120/chartZoom),CHART_MIN_CANDLES,CHART_MAX_CANDLES);
  const data=candles.slice(-visibleCount),vals=data.flatMap(x=>[x.h,x.l]);if(!vals.length)return;
- let mn=Math.min(...vals),mx=Math.max(...vals);[t.b.m36,t.b.m08,t.b.vw,t.b.p08,t.b.p36].forEach(x=>{mn=Math.min(mn,x);mx=Math.max(mx,x)});rows.slice(0,8).forEach(r=>{if(Number.isFinite(r.strike)){mn=Math.min(mn,r.strike);mx=Math.max(mx,r.strike)}});
+ let mn=Math.min(...vals),mx=Math.max(...vals);[t.b.m36,t.b.m08,t.b.vw,t.b.p08,t.b.p36].forEach(x=>{mn=Math.min(mn,x);mx=Math.max(mx,x)});
  const pad=(mx-mn)*.08||1;mn-=pad;mx+=pad;const L=62,R=15,T=20,B=28,PW=w-L-R,PH=h-T-B,x=i=>L+i/Math.max(1,data.length-1)*PW,y=v=>T+(mx-v)/(mx-mn)*PH;
  chartView={data,L,R,T,B,PW,PH,w,h,x,y,cw:Math.max(2,Math.min(8,PW/data.length*.7)),mn,mx};
  ctx.font='10px Arial';ctx.strokeStyle='#263444';ctx.fillStyle='#8e9bab';for(let i=0;i<6;i++){let yy=T+i*PH/5;ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.fillText('$'+fmt(mx-(mx-mn)*i/5,0),5,yy+4)}
  const pivotInfo=classicPivots(); if(pivotInfo){ctx.fillStyle='#ffd166';ctx.font='bold 9px Arial';ctx.fillText('DAILY PIVOTS',L+70,T+9)}
  const bands=[['-3.6σ',t.b.m36,'#ff5d6c'],['-0.8σ',t.b.m08,'#ff5d6c'],['VWAP',t.b.vw,'#55c7ff'],['+0.8σ',t.b.p08,'#39d98a'],['+3.6σ',t.b.p36,'#39d98a']];
  bands.forEach(([name,val,col])=>{ctx.strokeStyle=col;ctx.setLineDash(name==='VWAP'?[]:[5,5]);ctx.beginPath();ctx.moveTo(L,y(val));ctx.lineTo(w-R,y(val));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.fillText(name+' $'+fmt(val,0),L+5,y(val)-4)});
- const sr=dynamicSR(data,t); drawPivotLines(ctx,sr.pivots,y,L,R,w); drawSRBars(ctx,sr,y,L,R,w);
+ const sr=srLevelsWithOverrides(dynamicSR(data,t)); drawPivotLines(ctx,sr.pivots,y,L,R,w); drawSRBars(ctx,sr,y,L,R,w);
  const cw=chartView.cw;data.forEach((k,i)=>{let xx=x(i),up=k.c>=k.o;ctx.strokeStyle=up?'#39d98a':'#ff5d6c';ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(xx,y(k.h));ctx.lineTo(xx,y(k.l));ctx.stroke();let top=Math.min(y(k.o),y(k.c)),bh=Math.max(1,Math.abs(y(k.c)-y(k.o)));ctx.fillRect(xx-cw/2,top,cw,bh)});
  ctx.strokeStyle='#55c7ff';ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(L,y(price));ctx.lineTo(w-R,y(price));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#55c7ff';ctx.font='bold 11px Arial';ctx.fillText('LIVE $'+fmt(price,2),L+5,Math.max(14,y(price)-7));
- // Kalshi strike levels
- rows.slice(0,5).forEach(r=>{if(!Number.isFinite(r.strike))return;ctx.strokeStyle='#ffd166';ctx.setLineDash([2,6]);ctx.beginPath();ctx.moveTo(L,y(r.strike));ctx.lineTo(w-R,y(r.strike));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#ffd166';ctx.fillText('K '+fmt(r.strike,0)+' • '+Math.round(r.model*100)+'%',w-R-150,y(r.strike)-4)});
  // Hover guide
  if(hoveredCandleIndex!=null&&chartView.data[hoveredCandleIndex]){
    const hx=x(hoveredCandleIndex);ctx.save();ctx.strokeStyle='rgba(255,255,255,.28)';ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(hx,T);ctx.lineTo(hx,h-B);ctx.stroke();ctx.restore();
@@ -883,9 +606,6 @@ function drawPattern(ctx,p,x,y,L,R){
 async function loadBTC(){
   const interval=Math.max(1,Number($('tf').value)||5);
   const url=`${KRAKEN}/OHLC?pair=XBTUSD&interval=${interval}`;
-  // Kraken is independent of Kalshi. Do NOT route this through getJson(),
-  // because getJson() is intentionally reserved for Kalshi's API hosts.
-  // A previous build accidentally prefixed the Kraken URL with a Kalshi host,
   // which made the entire initial data load fail.
   let r;
   try{
@@ -920,7 +640,7 @@ async function loadBTC(){
 }
 
 async function calculate(){
- if(!candles.length||!price)return;const t=tech(),p=detectPatterns(),rows=scanMarkets(t);render(t,p,rows);
+ if(!candles.length||!price)return;const t=tech(),p=detectPatterns();render(t,p);
 }
 function connect(){
   // REST polling is used for the GitHub Pages build so a WebSocket failure can
@@ -934,146 +654,19 @@ async function fetchOrderBook(ticker){
 async function fetchTrades(ticker){
  try{const x=await getJson(`/markets/trades?ticker=${encodeURIComponent(ticker)}&limit=50`);return x.trades||[]}catch(e){return[]}
 }
-async function fetchKalshiMarkets(params=''){
-  // Kept for compatibility, but no longer used for broad discovery because
-  // /markets?limit=1000 is unnecessarily expensive and prone to rate limits.
-  const u=`/markets?limit=100&status=open${params}`;
-  const x=await getJson(u);
-  return x?.markets||[];
-}
-async function fetchKalshiEvents(series){
-  const u=`/events?limit=50&series_ticker=${encodeURIComponent(series)}&status=open&with_nested_markets=true`;
-  const x=await getJson(u);
-  return x?.events||[];
-}
-function flattenKalshiEvents(events){
-  const out=[];
-  for(const ev of events||[]){
-    for(const m of (ev.markets||[])){
-      out.push({...m,series_ticker:m.series_ticker||ev.series_ticker,event_ticker:ev.event_ticker,event_title:ev.title,event_subtitle:ev.sub_title});
-    }
-  }
-  return out;
-}
-function marketWindowMinutes(m){
-  const o=Date.parse(m?.open_time||'')||0,c=Date.parse(m?.close_time||m?.expiration_time||'')||0;
-  return o&&c&&c>o?(c-o)/60000:NaN;
-}
-function classifyBtcMarket(m){
-  const s=String(m?.series_ticker||m?.event_ticker||m?.ticker||'').toUpperCase();
-  const w=marketWindowMinutes(m);
-  if(s.includes('BTC15M')||s.includes('BTC5M')||(Number.isFinite(w)&&w<=25))return '15M';
-  if(s.includes('BTCD')||s.includes('BTC1H')||s==='KXBTC'||(Number.isFinite(w)&&w>=40&&w<=80))return '1H';
-  return 'BTC';
-}
-async function loadKalshi(){
-  const now=Date.now();
-  let all=[];
-  const errors=[];
-
-  // One discovery request per cooldown window. The browser used to lose its
-  // in-memory cache on every reload, immediately hitting Kalshi again and
-  // making a 429 look permanent. Persisted cache/backoff prevents that.
-  const discoveryDue=Date.now()-kalshiLastDiscovery>=KALSHI_DISCOVERY_GAP;
-  if(!discoveryDue){
-    const cached15=getCachedKalshi('/events?limit=50&series_ticker=KXBTC15M&status=open&with_nested_markets=true',true);
-    const cached1h=getCachedKalshi('/events?limit=50&series_ticker=KXBTCD&status=open&with_nested_markets=true',true);
-    if(cached15)all.push(...flattenKalshiEvents(cached15.events||[]));
-    if(cached1h)all.push(...flattenKalshiEvents(cached1h.events||[]));
-  }else{
-    try{
-      const events=await fetchKalshiEvents('KXBTC15M');
-      all.push(...flattenKalshiEvents(events));
-      kalshiLastDiscovery=Date.now();
-      try{localStorage.setItem('jb_kalshi_last_discovery',String(kalshiLastDiscovery))}catch(_){}
-    }catch(e){errors.push('KXBTC15M '+e.message)}
-    // Only request the hourly series after the 15m series succeeds. This
-    // cuts the request burst in half when the upstream is throttling.
-    if(all.length){
-      try{
-        const events=await fetchKalshiEvents('KXBTCD');
-        all.push(...flattenKalshiEvents(events));
-      }catch(e){errors.push('KXBTCD '+e.message)}
-    }
-  }
-  if(!all.length){
-    const cached15=getCachedKalshi('/events?limit=50&series_ticker=KXBTC15M&status=open&with_nested_markets=true',true);
-    if(cached15)all.push(...flattenKalshiEvents(cached15.events||[]));
-  }
-
-  const map=new Map();
-  for(const m of all){
-    if(!m?.ticker)continue;
-    const ticker=String(m.ticker).toUpperCase();
-    const isBtc=ticker.includes('BTC') || String(m.event_ticker||'').toUpperCase().includes('BTC') || String(m.series_ticker||'').toUpperCase().includes('BTC');
-    if(isBtc)map.set(m.ticker,m);
-  }
-  all=[...map.values()];
-
-  const live=all.filter(m=>{
-    const close=Date.parse(m?.close_time||m?.expiration_time||m?.latest_expiration_time||'')||0;
-    const status=String(m?.status||'').toLowerCase();
-    return close>now && (status==='open'||status==='initialized'||status==='unopened'||!status);
-  });
-
-  const groups={M15:[],H1:[],BTC:[]};
-  for(const m of live){
-    const k=classifyBtcMarket(m);
-    if(k==='15M')groups.M15.push(m);
-    else if(k==='1H')groups.H1.push(m);
-    else groups.BTC.push(m);
-  }
-  const byClose=(a,b)=>(Date.parse(a.close_time||a.expiration_time||'')||Infinity)-(Date.parse(b.close_time||b.expiration_time||'')||Infinity);
-  groups.M15.sort(byClose);groups.H1.sort(byClose);groups.BTC.sort(byClose);
-
-  // Keep a small visible contract set. Only the two nearest contracts get
-  // order-book/trade polling; the remaining two are market-metadata only.
-  const candidates=[...groups.M15.slice(0,2),...groups.H1.slice(0,2),...groups.BTC.slice(0,1)].slice(0,5);
-  if(candidates.length)markets=candidates;
-  const microCandidates=candidates.slice(0,1);
-  await Promise.all(microCandidates.map(async m=>{
-    try{
-      const book=await fetchOrderBook(m.ticker);
-      if(book)m._book=book;
-      const trades=await fetchTrades(m.ticker);
-      m._trades=trades||[];
-    }catch(e){}
-  }));
-
-  const diag=$('kalshiDiag');
-  $('kalshiStatus').textContent=`Kalshi: ${markets.length} BTC contracts • ${groups.M15.length} × 15m • ${groups.H1.length} × 1h • ${kalshiTransport.toLowerCase()}`;
-  if(diag){
-    if(markets.length){
-      const first=markets[0]?.ticker||'';
-      const age=kalshiCache.size?' • cached/batched':' '; 
-      diag.textContent=`Feed OK • ${markets.length} active BTC contracts • 15m ${groups.M15.length} • 1h ${groups.H1.length} • ${first}${age}`;
-    }else{
-      const cool=Date.now()<kalshiBackoffUntil?` Rate-limit backoff ${Math.ceil((kalshiBackoffUntil-Date.now())/1000)}s.`:'';
-      diag.textContent=KALSHI_BRIDGE?`Bridge/Kalshi unavailable: ${kalshiLastError||errors.join(' | ')||'no response'}.${cool}`:`Browser/API access blocked: ${errors.length?errors.join(' | '):kalshiLastError||'no public BTC contracts returned'}. Static GitHub Pages needs the companion Kalshi bridge.${cool}`;
-    }
-  }
-}
 async function loadAll(){
   clearErr();
-  setStatus(false,'Loading market data…');
+  setStatus(false,'Loading BTC…');
   try{
     await loadBTC();
     setStatus(true,'Live • Kraken');
     await calculate();
   }catch(e){
-    setStatus(false,'Kraken error');
-    err('Kraken data error: '+e.message);
+    if(candles.length&&price){setStatus(true,'Live • Kraken')}
+    else{setStatus(false,'Kraken error');err('Kraken data error: '+e.message)}
   }
-  try{
-    await loadKalshi();
-  }catch(e){
-    // Preserve the last good contracts while Kalshi is rate-limited.
-    $('kalshiStatus').textContent=markets.length?'Kalshi: cached • BTC chart still live':'Kalshi: unavailable • BTC chart still live';
-    $('kalshiDiag').textContent=markets.length?'Using last known Kalshi contracts while upstream cools down: '+e.message:'Kalshi feed unavailable: '+e.message;
-  }
-  try{await calculate()}catch(e){err('Engine error: '+e.message)}
 }
-$('refresh').onclick=loadAll;$('tf').onchange=loadAll;$('window').onchange=calculate;
+$('refresh').onclick=loadAll;$('tf').onchange=loadAll;
 initChartInteractions();
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
 setInterval(async()=>{
@@ -1083,10 +676,6 @@ setInterval(async()=>{
     else{setStatus(false,'Kraken error');err('Kraken data error: '+e.message)}
   }
 },5000);
-setInterval(async()=>{
-  if(paused||Date.now()<kalshiBackoffUntil)return;
-  try{await loadKalshi();await calculate()}catch(_){}
-},120000);
 window.addEventListener('resize',()=>candles.length&&calculate());
 
 function setChartZoom(next){
@@ -1098,6 +687,7 @@ function setChartZoom(next){
 $('chartZoomIn').onclick=()=>setChartZoom(chartZoom*1.25);
 $('chartZoomOut').onclick=()=>setChartZoom(chartZoom/1.25);
 $('chartZoomReset').onclick=()=>setChartZoom(1);
+$('srReset').onclick=resetManualSR;
 $('chart').addEventListener('wheel',e=>{
   e.preventDefault();
   setChartZoom(chartZoom*(e.deltaY<0?1.18:.85));
