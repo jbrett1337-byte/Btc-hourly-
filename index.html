@@ -201,6 +201,34 @@ const WS='wss://ws.kraken.com/v2';
 // deploy the companion kalshi-proxy.js Worker and paste its URL here.
 const KALSHI_BRIDGE='https://jb-kalshi-proxy.jbrett1337.workers.dev';
 
+// Core runtime state/helpers. These must exist before the startup call at the
+// bottom of the page; without them the dashboard stops before the first API
+// request and remains stuck on "Connecting…".
+let candles=[];
+let price=0;
+let markets=[];
+let paused=false;
+let ws=null;
+let reconnect=null;
+const $=id=>document.getElementById(id);
+function clamp(v,min,max){return Math.min(max,Math.max(min,v))}
+function mean(a){return a&&a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
+function fmt(v,d=2){return Number.isFinite(Number(v))?Number(v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d}):'—'}
+function pct(v,d=1){const n=Number(v);return Number.isFinite(n)?((n*100).toFixed(d)+'%'):'—'}
+function setStatus(ok,text){
+  const dot=$('dot'),conn=$('conn');
+  if(conn)conn.textContent=text||'';
+  if(dot)dot.className='dot '+(ok?'live':'');
+}
+function clearErr(){
+  const e=$('error');
+  if(e){e.textContent='';e.style.display='none'}
+}
+function err(msg){
+  const e=$('error');
+  if(e){e.textContent=String(msg||'');e.style.display=msg?'block':'none'}
+}
+
 function kalshiUrl(path,base){
   const b=String(base||'').replace(/\/$/,'');
   const p=String(path||'').replace(/^\/+/,'');
