@@ -545,9 +545,19 @@ async function fetchOrderBook(ticker){
 async function fetchTrades(ticker){
  try{const x=await getJson(`${KBASE}/markets/trades?ticker=${encodeURIComponent(ticker)}&limit=50`);return x.trades||[]}catch(e){return[]}
 }
+async function fetchKalshiMarkets(params=''){
+  const all=[]; let cursor='';
+  for(let page=0;page<5;page++){
+    const u=`${KBASE}/markets?limit=1000&status=open${params}${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
+    const x=await getJson(u);
+    all.push(...(x?.markets||[]));
+    cursor=x?.cursor||'';
+    if(!cursor||!(x?.markets||[]).length)break;
+  }
+  return all;
+}
 async function fetchKalshiEvents(series){
-  const all=[];
-  let cursor='';
+  const all=[]; let cursor='';
   for(let page=0;page<5;page++){
     const u=`${KBASE}/events?limit=200&series_ticker=${encodeURIComponent(series)}&status=open&with_nested_markets=true${cursor?`&cursor=${encodeURIComponent(cursor)}`:''}`;
     const x=await getJson(u);
@@ -561,7 +571,7 @@ function flattenKalshiEvents(events){
   const out=[];
   for(const ev of events||[]){
     for(const m of (ev.markets||[])){
-      out.push({...m,series_ticker:ev.series_ticker,event_title:ev.title,event_subtitle:ev.sub_title});
+      out.push({...m,series_ticker:m.series_ticker||ev.series_ticker,event_ticker:ev.event_ticker,event_title:ev.title,event_subtitle:ev.sub_title});
     }
   }
   return out;
@@ -571,38 +581,48 @@ function marketWindowMinutes(m){
   return o&&c&&c>o?(c-o)/60000:NaN;
 }
 function classifyBtcMarket(m){
-  const s=String(m?.series_ticker||m?.ticker||'').toUpperCase();
+  const s=String(m?.series_ticker||m?.event_ticker||m?.ticker||'').toUpperCase();
   const w=marketWindowMinutes(m);
-  if(s==='KXBTC15M'||s.includes('BTC15M')||(!s.includes('KXBTC')&&Number.isFinite(w)&&w<=25))return '15M';
-  if(s==='KXBTC'||s.includes('KXBTC-')){
-    if(Number.isFinite(w)&&w>=40&&w<=80)return '1H';
-    return 'BTC';
-  }
-  if(Number.isFinite(w)&&w<=25)return '15M';
-  if(Number.isFinite(w)&&w>=40&&w<=80)return '1H';
+  if(s.includes('BTC15M')||s.includes('BTC5M')||(Number.isFinite(w)&&w<=25))return '15M';
+  if((s==='KXBTC'||s.includes('BTC1H'))|| (Number.isFinite(w)&&w>=40&&w<=80))return '1H';
   return 'BTC';
 }
 async function loadKalshi(){
   const now=Date.now();
   let all=[];
-  const series=['KXBTC15M','KXBTC'];
+  const errors=[];
 
-  for(const s of series){
+  // Primary discovery: the Markets endpoint. This avoids depending on a
+  // particular BTC event/series name and is the most direct live-market feed.
+  try{
+    const direct=await fetchKalshiMarkets('&mve_filter=exclude');
+    all.push(...direct.map(m=>({...m,series_ticker:m.series_ticker||String(m.event_ticker||m.ticker||'').split('-')[0]})));
+  }catch(e){errors.push('markets '+e.message)}
+
+  // Also query the known recurring BTC series as a secondary source.
+  for(const s of ['KXBTC15M','KXBTC']){
     try{
       const events=await fetchKalshiEvents(s);
       all.push(...flattenKalshiEvents(events));
-    }catch(e){}
+    }catch(e){errors.push(s+' '+e.message)}
   }
 
   // De-duplicate actual contract tickers.
   const map=new Map();
-  for(const m of all)if(m?.ticker)map.set(m.ticker,m);
+  for(const m of all){
+    if(!m?.ticker)continue;
+    const ticker=String(m.ticker).toUpperCase();
+    const isBtc=ticker.includes('BTC') || String(m.event_ticker||'').toUpperCase().includes('BTC') || String(m.series_ticker||'').toUpperCase().includes('BTC');
+    if(isBtc)map.set(m.ticker,m);
+  }
   all=[...map.values()];
 
+  // Keep only live contracts. A contract is usable if its close/expiration
+  // is still in the future; tolerate both open and initialized responses.
   markets=all.filter(m=>{
-    const close=Date.parse(m?.close_time||m?.expiration_time||'')||0;
+    const close=Date.parse(m?.close_time||m?.expiration_time||m?.latest_expiration_time||'')||0;
     const status=String(m?.status||'').toLowerCase();
-    return close>now && (status==='open'||status==='initialized'||!status);
+    return close>now && (status==='open'||status==='initialized'||status==='unopened'||!status);
   });
 
   const groups={M15:[],H1:[],BTC:[]};
@@ -613,40 +633,33 @@ async function loadKalshi(){
     else groups.BTC.push(m);
   }
 
-  const byClose=(a,b)=>
-    (Date.parse(a.close_time||a.expiration_time||'')||Infinity)-
-    (Date.parse(b.close_time||b.expiration_time||'')||Infinity);
-  groups.M15.sort(byClose);
-  groups.H1.sort(byClose);
-  groups.BTC.sort(byClose);
+  const byClose=(a,b)=>(Date.parse(a.close_time||a.expiration_time||'')||Infinity)-(Date.parse(b.close_time||b.expiration_time||'')||Infinity);
+  groups.M15.sort(byClose); groups.H1.sort(byClose); groups.BTC.sort(byClose);
 
-  // Use the nearest active contracts, but include several nearby strikes so
-  // the model can rank the best one rather than only looking at one ticker.
-  const candidates=[...groups.M15.slice(0,8),...groups.H1.slice(0,8),...groups.BTC.slice(0,4)];
-  markets=candidates.length?markets:all.filter(m=>Date.parse(m.close_time||m.expiration_time||'')>now);
+  // Prefer the nearest 15m and 1h contracts. Keep a few additional BTC
+  // contracts so the scanner can recover even if one feed is delayed.
+  const candidates=[...groups.M15.slice(0,10),...groups.H1.slice(0,10),...groups.BTC.slice(0,5)];
+  markets=candidates;
 
   await Promise.all(candidates.map(async m=>{
     try{
-      const [book,trades]=await Promise.all([
-        fetchOrderBook(m.ticker),
-        fetchTrades(m.ticker)
-      ]);
+      const [book,trades]=await Promise.all([fetchOrderBook(m.ticker),fetchTrades(m.ticker)]);
       if(book)m._book=book;
       m._trades=trades||[];
     }catch(e){}
   }));
 
-  $('kalshiStatus').textContent=
-    `Kalshi: ${markets.length} BTC contracts • ${groups.M15.length} × 15m • ${groups.H1.length} × 1h • V7.4 live`;
-
   const diag=$('kalshiDiag');
+  $('kalshiStatus').textContent=`Kalshi: ${markets.length} BTC contracts • ${groups.M15.length} × 15m • ${groups.H1.length} × 1h • live discovery`;
   if(diag){
-    diag.textContent=markets.length
-      ? `Feed OK • ${markets.length} active BTC contracts • nearest contracts loaded`
-      : `No active BTC contracts returned by Kalshi Events API`;
+    if(markets.length){
+      const first=markets[0]?.ticker||'';
+      diag.textContent=`Feed OK • ${markets.length} active BTC contracts • 15m ${groups.M15.length} • 1h ${groups.H1.length} • ${first}`;
+    }else{
+      diag.textContent=`No live BTC markets found. ${errors.length?errors.join(' | '):'API returned no matching BTC contracts.'}`;
+    }
   }
 }
-
 async function loadAll(){
  clearErr();try{await loadBTC();await loadKalshi();await calculate();connect()}catch(e){setStatus(false,'Data error');err('Market data error: '+e.message+' — retrying.');setTimeout(()=>{if(!paused)loadAll()},8000)}
 }
