@@ -271,7 +271,14 @@ function renderPattern(p,t){
  return p;
 }
 
-function marketType(m){const s=String(m.series_ticker||m.ticker||'').toUpperCase();if(s.includes('BTC15M'))return'15m';if(s==='KXBTCD'||s.includes('BTCD'))return'1h';return'other'}
+function marketType(m){
+  const s=String(m.series_ticker||m.ticker||'').toUpperCase();
+  const o=Date.parse(m.open_time||'')||0,c=Date.parse(m.close_time||m.expiration_time||'')||0;
+  const w=o&&c&&c>o?(c-o)/60000:NaN;
+  if(s==='KXBTC15M'||s.includes('BTC15M')||(Number.isFinite(w)&&w<=25))return'15m';
+  if(s==='KXBTC'||s.includes('KXBTC-'))return Number.isFinite(w)&&w>=40&&w<=80?'1h':'other';
+  return Number.isFinite(w)&&w>=40&&w<=80?'1h':'other';
+}
 function strike(m){for(const k of ['floor_strike','strike_price','floor_strike_dollars','strike']){let n=Number(m[k]);if(Number.isFinite(n))return n}let t=String(m.ticker||'');let x=t.match(/T(\d+(?:\.\d+)?)/);return x?Number(x[1]):NaN}
 function yes(m){const b=Number(m.yes_bid_dollars),a=Number(m.yes_ask_dollars),l=Number(m.last_price_dollars);if(Number.isFinite(b)&&Number.isFinite(a))return(b+a)/2;if(Number.isFinite(l))return l;if(Number.isFinite(b))return b;return .5}
 function minutesLeft(m){const t=Date.parse(m.close_time||m.expiration_time||'');return Math.max(0,(t-Date.now())/60000)}
@@ -565,16 +572,20 @@ function marketWindowMinutes(m){
 }
 function classifyBtcMarket(m){
   const s=String(m?.series_ticker||m?.ticker||'').toUpperCase();
-  if(s.includes('BTC15M'))return '15M';
-  if(s==='KXBTCD'||s.includes('BTCD'))return '1H';
   const w=marketWindowMinutes(m);
+  if(s==='KXBTC15M'||s.includes('BTC15M')||(!s.includes('KXBTC')&&Number.isFinite(w)&&w<=25))return '15M';
+  if(s==='KXBTC'||s.includes('KXBTC-')){
+    if(Number.isFinite(w)&&w>=40&&w<=80)return '1H';
+    return 'BTC';
+  }
   if(Number.isFinite(w)&&w<=25)return '15M';
+  if(Number.isFinite(w)&&w>=40&&w<=80)return '1H';
   return 'BTC';
 }
 async function loadKalshi(){
   const now=Date.now();
   let all=[];
-  const series=['KXBTC15M','KXBTCD'];
+  const series=['KXBTC15M','KXBTC'];
 
   for(const s of series){
     try{
@@ -612,6 +623,7 @@ async function loadKalshi(){
   // Use the nearest active contracts, but include several nearby strikes so
   // the model can rank the best one rather than only looking at one ticker.
   const candidates=[...groups.M15.slice(0,8),...groups.H1.slice(0,8),...groups.BTC.slice(0,4)];
+  markets=candidates.length?markets:all.filter(m=>Date.parse(m.close_time||m.expiration_time||'')>now);
 
   await Promise.all(candidates.map(async m=>{
     try{
@@ -625,7 +637,7 @@ async function loadKalshi(){
   }));
 
   $('kalshiStatus').textContent=
-    `Kalshi: ${markets.length} BTC contracts • ${groups.M15.length} × 15m • ${groups.H1.length} × 1h • V7.3 live`;
+    `Kalshi: ${markets.length} BTC contracts • ${groups.M15.length} × 15m • ${groups.H1.length} × 1h • V7.4 live`;
 
   const diag=$('kalshiDiag');
   if(diag){
