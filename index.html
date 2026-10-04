@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JB BTC Edge V7.8 • Live Kalshi Microstructure Sniper</title>
+<title>JB BTC Edge V8.0 • Live Kalshi Microstructure Sniper</title>
 <style>
 :root{--bg:#090d12;--p:#101720;--p2:#151f2a;--t:#edf3fa;--m:#8e9bab;--l:#263444;--g:#39d98a;--r:#ff5d6c;--y:#ffd166;--c:#55c7ff;--o:#ff9f43}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px Arial,sans-serif}
@@ -54,7 +54,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </head>
 <body>
 <header>
-<div><h1>JB BTC Edge V7.8 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
+<div><h1>JB BTC Edge V8.0 • Live Kalshi Microstructure Sniper</h1><div class="sub">VWAP 0.8σ / 3.6σ • volume + order flow • liquidity heatmap • pattern confirmation • sniper trigger</div></div>
 <div class="status"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></div>
 </header>
 <main>
@@ -65,6 +65,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 <span class="pill" id="kalshiStatus">Kalshi: connecting…</span><span class="pill" id="kalshiDiag">Feed diagnostics: starting…</span>
 </div>
 <div id="error"></div>
+<div id="kalshiBridgeNote" class="note" style="margin:7px 0 0">Kalshi public REST is separate from Kraken. If this GitHub Pages origin is blocked by Kalshi CORS, use the companion <b>kalshi-proxy.js</b> bridge; the app will read it from <code>localStorage.jb_kalshi_bridge</code>.</div>
 
 <div class="grid">
 <div class="card"><div class="label">Live BTC</div><div id="price" class="big">—</div></div>
@@ -111,7 +112,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 <div class="card" style="margin-top:10px"><div class="label">Best Contract Microstructure</div><div id="bookDetail" class="depth">Waiting for order-book data…</div></div>
 <div class="card" style="margin-top:10px">
   <div class="microHead">
-    <div class="label">V7.8 Live Microstructure Engine</div>
+    <div class="label">V8.0 Live Microstructure Engine</div>
     <div id="microState" class="microBadge">WAITING FOR FLOW</div>
   </div>
   <div class="flowGrid" style="margin-top:9px">
@@ -129,7 +130,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
   </div>
 </div>
 <div class="card" style="margin-top:10px">
-  <div class="label">⚡ V7.8 Sniper Trigger</div>
+  <div class="label">⚡ V8.0 Sniper Trigger</div>
   <div id="sniperTrigger" class="trigger yellow">SCANNING…</div>
   <div id="sniperReason" class="triggerSmall">The trigger combines model edge, VWAP regime, pattern confirmation, volume, order-book imbalance, flow delta, liquidity behavior and time-to-expiry.</div>
 </div>
@@ -171,7 +172,7 @@ canvas{width:100%;height:440px;display:block;background:var(--p);border:1px soli
 </div>
 
 <div class="section"><div class="card"><div class="label">Data Notes</div><div class="note">
-BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V7.8 adds a rolling order-book depth/imbalance history and interactive candle inspection, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled. GitHub Pages cannot bypass Kalshi browser CORS, so Kalshi reads use direct public API requests first and a read-only CORS relay fallback when the browser blocks them. This is still an analytical model, not the official Kalshi probability or settlement feed.
+BTC candles use Kraken public data for technical calculations. Kalshi crypto contracts use the CF Benchmarks RTI for settlement; Kalshi says the final value for crypto contracts is the average of 60 one-second RTI observations in the final minute. V8.0 adds a rolling order-book depth/imbalance history and interactive candle inspection, trade-flow delta, liquidity stacking/pulls and sweep-aware sniper trigger. REST polling is intentionally throttled. GitHub Pages cannot bypass Kalshi browser CORS, so Kalshi reads use direct public API requests first and a read-only CORS relay fallback when the browser blocks them. This is still an analytical model, not the official Kalshi probability or settlement feed.
 </div></div></div>
 </main>
 
@@ -187,28 +188,14 @@ let kalshiTransport='—';
 let kalshiLastError='';
 const KRAKEN='https://api.kraken.com/0/public';
 const WS='wss://ws.kraken.com/v2';
-const KPROXIES=[
-  {name:'ALLORIGINS',base:'https://api.allorigins.win/raw?url='},
-  {name:'CORSPROXY',base:'https://corsproxy.io/?url='}
-];
-let candles=[],price=0,paused=false,ws=null,reconnect=null,markets=[],lastVol=new Map();
-const microHistory=new Map(), flowHistory=new Map(), sweepHistory=new Map();
-let lastBestTicker='';
+// GitHub Pages is static, so it cannot act as a server-side CORS proxy.
+// Leave this blank for direct public API access. If the browser blocks Kalshi,
+// deploy the companion kalshi-proxy.js Worker and paste its URL here.
+const KALSHI_BRIDGE=(localStorage.getItem('jb_kalshi_bridge')||'').trim().replace(/\/$/,'');
 
-
-const $=id=>document.getElementById(id);
-const fmt=(n,d=2)=>Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
-const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-const pct=(x,d=1)=>(x*100).toFixed(d)+'%';
-const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0;
-const sd=a=>a.length?Math.sqrt(mean(a.map(x=>(x-mean(a))**2))):0;
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function setStatus(ok,t){$('dot').className='dot'+(ok?' on':'');$('conn').textContent=t}
-function err(e){$('error').style.display='block';$('error').textContent=e}
-function clearErr(){$('error').style.display='none'}
 async function fetchWithTimeout(url,ms=9000){
   const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms);
-  try{return await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'},signal:ctl.signal})}
+  try{return await fetch(url,{cache:'no-store',signal:ctl.signal})}
   finally{clearTimeout(timer)}
 }
 async function readJsonResponse(r,label){
@@ -216,32 +203,36 @@ async function readJsonResponse(r,label){
   const text=await r.text();
   try{return JSON.parse(text)}catch(_){throw Error(`${label} non-JSON response`)}
 }
+function kalshiUrl(path,base){
+  const clean=String(path).startsWith('/')?String(path):'/'+path;
+  return String(base).replace(/\/$/,'') + (String(base).includes('trade-api/v2') ? clean : '/trade-api/v2'+clean);
+}
 async function getJson(pathOrUrl){
-  const path=String(pathOrUrl).startsWith('http')?String(pathOrUrl).replace(/^https:\/\/[^/]+\/trade-api\/v2/,''):String(pathOrUrl);
+  const path=String(pathOrUrl).startsWith('http')
+    ?String(pathOrUrl).replace(/^https:\/\/[^/]+\/trade-api\/v2/,'')
+    :String(pathOrUrl);
   const directErrors=[];
-  const urls=KBASES.map(host=>({name:host.name,base:host.base,url:host.base+(path.startsWith('/')?path:'/'+path)}));
-  // First try Kalshi directly. Static GitHub Pages cannot bypass a Kalshi
-  // CORS policy, so if the browser blocks these requests we transparently
-  // fall back to a public read-only CORS relay. No credentials are sent.
-  for(const item of urls){
+
+  // A user-deployed bridge is the reliable way to use Kalshi from a static
+  // GitHub Pages origin when Kalshi's API does not expose CORS to that origin.
+  if(KALSHI_BRIDGE){
     try{
-      const data=await readJsonResponse(await fetchWithTimeout(item.url),item.name);
-      KBASE=item.base;kalshiTransport=item.name;kalshiLastError='';
+      const data=await readJsonResponse(await fetchWithTimeout(kalshiUrl(path,KALSHI_BRIDGE)),`BRIDGE`);
+      KBASE=KBASES[1].base;kalshiTransport='BRIDGE';kalshiLastError='';
       return data;
-    }catch(e){directErrors.push(`${item.name} ${e?.message||'network/CORS error'}`)}
+    }catch(e){directErrors.push(`BRIDGE ${e?.message||'failed'}`)}
   }
-  const proxyErrors=[];
-  for(const item of urls){
-    for(const proxy of KPROXIES){
-      try{
-        const proxied=proxy.base+encodeURIComponent(item.url);
-        const data=await readJsonResponse(await fetchWithTimeout(proxied,10000),`${proxy.name}/${item.name}`);
-        KBASE=item.base;kalshiTransport=`${proxy.name} • ${item.name}`;kalshiLastError='';
-        return data;
-      }catch(e){proxyErrors.push(`${proxy.name}/${item.name} ${e?.message||'failed'}`)}
-    }
+
+  // Direct public API. Current Kalshi documentation lists public market-data
+  // endpoints as unauthenticated; the elections host is the primary host.
+  for(const host of [KBASES[1],KBASES[0]]){
+    try{
+      const data=await readJsonResponse(await fetchWithTimeout(kalshiUrl(path,host.base)),host.name);
+      KBASE=host.base;kalshiTransport=host.name;kalshiLastError='';
+      return data;
+    }catch(e){directErrors.push(`${host.name} ${e?.message||'network/CORS error'}`)}
   }
-  kalshiLastError=[...directErrors,...proxyErrors].join(' | ');
+  kalshiLastError=directErrors.join(' | ');
   throw Error(`Kalshi unavailable — ${kalshiLastError}`);
 }
 function returns(){let a=[];for(let i=1;i<candles.length;i++)a.push(Math.log(candles[i].c/candles[i-1].c));return a}
@@ -854,7 +845,7 @@ async function loadKalshi(){
       const first=markets[0]?.ticker||'';
       diag.textContent=`Feed OK • ${markets.length} active BTC contracts • 15m ${groups.M15.length} • 1h ${groups.H1.length} • ${first}`;
     }else{
-      diag.textContent=`No live BTC markets found. Transport ${kalshiTransport}. ${errors.length?errors.join(' | '):kalshiLastError||'API returned no matching BTC contracts.'}`;
+      diag.textContent=KALSHI_BRIDGE?`Bridge failed: ${kalshiLastError||'no response'}`:`Browser/API access blocked: ${errors.length?errors.join(' | '):kalshiLastError||'no public BTC contracts returned'}. Static GitHub Pages needs the companion Kalshi bridge.`;
     }
   }
 }
@@ -878,6 +869,8 @@ async function loadAll(){
   setTimeout(()=>{if(!paused)loadAll()},8000);
  }
 }
+const bridgeParam=new URLSearchParams(location.search).get('kalshiBridge');
+if(bridgeParam){try{localStorage.setItem('jb_kalshi_bridge',bridgeParam.replace(/\/$/,''));location.replace(location.pathname+location.hash)}catch(_){} }
 $('refresh').onclick=loadAll;$('tf').onchange=loadAll;$('window').onchange=calculate;
 initChartInteractions();
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
