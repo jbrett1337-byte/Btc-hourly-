@@ -219,7 +219,7 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function setStatus(ok,text){
   const dot=$('dot'),conn=$('conn');
   if(conn)conn.textContent=text||'';
-  if(dot)dot.className='dot '+(ok?'live':'');
+  if(dot)dot.className='dot '+(ok?'on':'');
 }
 function clearErr(){
   const e=$('error');
@@ -800,6 +800,7 @@ async function loadBTC(){
   if(!candles.length)throw Error('No BTC candles returned');
   price=candles.at(-1).c;
   $('price').textContent='$'+fmt(price,2);
+  clearErr();
   // REST candles are enough to make the dashboard usable even if the
   // WebSocket is still connecting or unavailable.
   setStatus(true,'Live • Kraken');
@@ -959,12 +960,15 @@ initChartInteractions();
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume live':'Pause live';if(!paused)loadAll()};
 setInterval(async()=>{
   if(paused)return;
-  try{await loadBTC();await calculate()}catch(e){setStatus(false,'Kraken error');err('Kraken data error: '+e.message)}
+  try{await loadBTC();setStatus(true,'Live • Kraken');await calculate()}catch(e){
+    if(candles.length&&price){setStatus(true,'Live • Kraken')}
+    else{setStatus(false,'Kraken error');err('Kraken data error: '+e.message)}
+  }
 },5000);
 setInterval(async()=>{
   if(paused||Date.now()<kalshiBackoffUntil)return;
   try{await loadKalshi();await calculate()}catch(_){}
-},20000);
+},60000);
 window.addEventListener('resize',()=>candles.length&&calculate());
 
 function setChartZoom(next){
