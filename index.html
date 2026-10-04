@@ -215,6 +215,7 @@ function clamp(v,min,max){return Math.min(max,Math.max(min,v))}
 function mean(a){return a&&a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
 function fmt(v,d=2){return Number.isFinite(Number(v))?Number(v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d}):'—'}
 function pct(v,d=1){const n=Number(v);return Number.isFinite(n)?((n*100).toFixed(d)+'%'):'—'}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])||c)}
 function setStatus(ok,text){
   const dot=$('dot'),conn=$('conn');
   if(conn)conn.textContent=text||'';
