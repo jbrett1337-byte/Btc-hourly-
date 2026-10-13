@@ -58,6 +58,7 @@ canvas{width:100%;height:900px;display:block;touch-action:none;background:var(--
 <div class="card"><div class="label">24h Change</div><div id="change" class="big">—</div></div>
 <div class="card"><div class="label">BTC Volume Ratio</div><div id="volRatio" class="big cyan">—</div><div id="volSub" class="mini">current / average</div></div>
 <div class="card"><div class="label">ATR</div><div id="atr" class="big">—</div></div>
+<div class="card"><div class="label">Dynamic Support / Resistance</div><div id="movingSRRole" class="big yellow">Waiting</div><div id="movingSRPrice" class="mini">Waiting for confirmed swing highs</div></div>
 </div>
 
 <div class="section"><h2>VWAP Regime • 0.8σ / 3.6σ</h2>
@@ -135,6 +136,7 @@ const WS='wss://ws.kraken.com/v2';
 // request and remains stuck on "Connecting…".
 let candles=[];
 let price=0;
+let movingSRCurrent=null;
 let paused=false;
 let ws=null;
 let reconnect=null;
@@ -597,6 +599,10 @@ function draw(t,p){
    if(hi>data[i-1].h&&hi>data[i-2].h&&hi>=data[i+1].h&&hi>=data[i+2].h) swingHighs.push({i,p:hi});
  }
  const rh=swingHighs.slice(-2);
+ movingSRCurrent=null;
+ const roleEl=$('movingSRRole'),levelEl=$('movingSRPrice');
+ if(roleEl){roleEl.textContent='Calculating';roleEl.className='big yellow';}
+ if(levelEl)levelEl.textContent='Waiting for confirmed swing highs';
  if(rh.length===2&&rh[1].i>rh[0].i){
    const a=rh[0],b=rh[1],slope=(b.p-a.p)/(b.i-a.i),endIndex=data.length-1;
    const endPrice=b.p+slope*(endIndex-b.i);
@@ -604,6 +610,10 @@ function draw(t,p){
      // Dynamic role reversal: the same projected trendline is support when price is
      // trading above it, and resistance when price is trading below it.
      const actingAsSupport=price>endPrice;
+     movingSRCurrent={price:endPrice,role:actingAsSupport?'SUPPORT':'RESISTANCE'};
+     const roleEl=$('movingSRRole'),levelEl=$('movingSRPrice');
+     if(roleEl){roleEl.textContent=movingSRCurrent.role;roleEl.className='big '+(actingAsSupport?'green':'red');}
+     if(levelEl)levelEl.textContent='$'+fmt(endPrice,2)+' • '+(actingAsSupport?'BTC trading above line':'BTC trading below line');
      const lineColor=actingAsSupport?'#39d98a':'#ff5d6c';
      const labelColor=actingAsSupport?'#72e6ad':'#ff7b86';
      ctx.save();ctx.strokeStyle=lineColor;ctx.lineWidth=2.5;ctx.setLineDash([7,4]);
@@ -661,7 +671,7 @@ function drawPattern(ctx,p,x,y,L,R){
  const labelW=205,labelH=82;
  const defaultX=clamp(right-labelW-8,L+8,right-labelW);
  const labelX=clamp(patternBoxPos.x==null?defaultX:patternBoxPos.x,L+8,right-labelW);
- const labelY=clamp(patternBoxPos.y==null?32:patternBoxPos.y,T,h-B-labelH);
+ const labelY=clamp(patternBoxPos.y==null?32:patternBoxPos.y,chartView.T,h-B-labelH);
  patternBoxPos.x=labelX;patternBoxPos.y=labelY;
  ctx.fillStyle='rgba(16,23,32,.96)';ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.fillRect(labelX,labelY,labelW,labelH);ctx.strokeRect(labelX,labelY,labelW,labelH);
  ctx.fillStyle=col;ctx.font='bold 12px Arial';ctx.fillText(p.name+' • '+p.score+'%',labelX+8,labelY+16);
