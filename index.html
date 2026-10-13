@@ -138,6 +138,11 @@ let price=0;
 let paused=false;
 let ws=null;
 let reconnect=null;
+// Chart overlay positions and drag state (prevents intermittent ReferenceError).
+const srBoxPos=Object.create(null);
+const patternBoxPos={x:null,y:null};
+let draggingPattern=false;
+let patternDragStartX=0,patternDragStartY=0,patternDragBoxX=0,patternDragBoxY=0;
 const $=id=>document.getElementById(id);
 function clamp(v,min,max){return Math.min(max,Math.max(min,v))}
 function mean(a){return a&&a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
