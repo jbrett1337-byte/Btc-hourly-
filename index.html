@@ -86,7 +86,7 @@ canvas{width:100%;height:900px;display:block;touch-action:none;background:var(--
  <button id="chartZoomReset" type="button">Reset Zoom</button>
 
  <span id="chartZoomLabel" class="chartZoomLabel">120 candles</span>
- <span class="chartZoomLabel">Scroll/pinch to zoom • dynamic S/R follows price • tap a candle for details</span>
+ <span class="chartZoomLabel">Scroll/pinch to zoom • dynamic S/R + moving resistance • tap a candle for details</span>
 </div>
 <div class="chartWrap">
 <canvas id="chart" aria-label="Interactive BTC candlestick chart. Tap or click a candle for details."></canvas>
@@ -109,7 +109,7 @@ canvas{width:100%;height:900px;display:block;touch-action:none;background:var(--
 </div>
 
 <div class="section"><div class="card"><div class="label">Data Notes</div><div class="note">
-BTC candles use Kraken public data for technical calculations. Technical levels are model-derived from price, volume, volatility, swing structure, prior-session pivots and dynamic clustering. Support/resistance lines are recalculated from the live price and recent swing structure as price moves.
+BTC candles use Kraken public data for technical calculations. Technical levels are model-derived from price, volume, volatility, swing structure, prior-session pivots and dynamic clustering. Support/resistance lines are recalculated from the live price and recent swing structure as price moves. The moving trendline connects the latest confirmed swing highs and extends forward; it updates when new candles confirm a swing high and switches between support (green) when price is above it and resistance (red) when price is below it.
 </div></div></div>
 </main>
 
@@ -584,7 +584,33 @@ function draw(t,p){
  const bands=[['-3.6σ',t.b.m36,'#ff5d6c'],['-0.8σ',t.b.m08,'#ff5d6c'],['VWAP',t.b.vw,'#55c7ff'],['+0.8σ',t.b.p08,'#39d98a'],['+3.6σ',t.b.p36,'#39d98a']];
  bands.forEach(([name,val,col])=>{ctx.strokeStyle=col;ctx.setLineDash(name==='VWAP'?[]:[5,5]);ctx.beginPath();ctx.moveTo(L,y(val));ctx.lineTo(w-R,y(val));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.fillText(name+' $'+fmt(val,0),L+5,y(val)-4)});
  const sr=dynamicSR(data,t); drawPivotLines(ctx,sr.pivots,y,L,R,w); drawSRBars(ctx,sr,y,L,R,w);
- const cw=chartView.cw;data.forEach((k,i)=>{let xx=x(i),up=k.c>=k.o;ctx.strokeStyle=up?'#39d98a':'#ff5d6c';ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(xx,y(k.h));ctx.lineTo(xx,y(k.l));ctx.stroke();let top=Math.min(y(k.o),y(k.c)),bh=Math.max(1,Math.abs(y(k.c)-y(k.o)));ctx.fillRect(xx-cw/2,top,cw,bh)});
+ // Moving resistance: connect the two latest confirmed swing highs, then project the slope to the live edge.
+ // Two candles on either side are required so the line does not jump on every temporary wick.
+ const swingHighs=[];
+ for(let i=2;i<data.length-2;i++){
+   const hi=data[i].h;
+   if(hi>data[i-1].h&&hi>data[i-2].h&&hi>=data[i+1].h&&hi>=data[i+2].h) swingHighs.push({i,p:hi});
+ }
+ const rh=swingHighs.slice(-2);
+ if(rh.length===2&&rh[1].i>rh[0].i){
+   const a=rh[0],b=rh[1],slope=(b.p-a.p)/(b.i-a.i),endIndex=data.length-1;
+   const endPrice=b.p+slope*(endIndex-b.i);
+   if(Number.isFinite(endPrice)&&endPrice>mn-pad*2&&endPrice<mx+pad*2){
+     // Dynamic role reversal: the same projected trendline is support when price is
+     // trading above it, and resistance when price is trading below it.
+     const actingAsSupport=price>endPrice;
+     const lineColor=actingAsSupport?'#39d98a':'#ff5d6c';
+     const labelColor=actingAsSupport?'#72e6ad':'#ff7b86';
+     ctx.save();ctx.strokeStyle=lineColor;ctx.lineWidth=2.5;ctx.setLineDash([7,4]);
+     ctx.beginPath();ctx.moveTo(x(a.i),y(a.p));ctx.lineTo(x(endIndex),y(endPrice));ctx.stroke();ctx.setLineDash([]);
+     ctx.fillStyle=labelColor;ctx.font='bold 10px Arial';
+     const label=(actingAsSupport?'MOVING SUPPORT $':'MOVING RESISTANCE $')+fmt(endPrice,0);
+     const ly=clamp(y(endPrice)-8,T+12,h-B-4);
+     ctx.fillText(label,Math.max(L+5,w-R-ctx.measureText(label).width-5),ly);
+     ctx.restore();
+   }
+ }
+ const cw=chartView.cw;data.forEach((k,i)=>{let xx=x(i),up=k.c>=k.o;ctx.strokeStyle=up?'#39d98a':'#ff5d6c';ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(xx,y(k.h));ctx.lineTo(xx,y(k.l));ctx.stroke();let top=Math.min(y(k.o),y(k.c)),bh=Math.max(1,Math.abs(y(k.o)-y(k.c)));ctx.fillRect(xx-cw/2,top,cw,bh)});
  ctx.strokeStyle='#55c7ff';ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(L,y(price));ctx.lineTo(w-R,y(price));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#55c7ff';ctx.font='bold 11px Arial';ctx.fillText('LIVE $'+fmt(price,2),L+5,Math.max(14,y(price)-7));
  // Hover guide
  if(hoveredCandleIndex!=null&&chartView.data[hoveredCandleIndex]){
