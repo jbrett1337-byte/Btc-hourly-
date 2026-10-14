@@ -545,34 +545,33 @@ function dynamicSR(data,t){
 }
 function drawPivotLines(ctx,piv,y,L,R,w){
  if(!piv)return;
+ // Keep all pivot levels visible, but only label the central pivot to avoid text collisions.
  const levels=[['PP',piv.pp,'#ffd166'],['R1',piv.r1,'#ff8a8a'],['R2',piv.r2,'#ff6b6b'],['R3',piv.r3,'#ff4d5a'],['S1',piv.s1,'#72e6ad'],['S2',piv.s2,'#39d98a'],['S3',piv.s3,'#20c77a']];
  levels.forEach(([name,val,col])=>{
   if(!Number.isFinite(val)||val<chartView.mn||val>chartView.mx)return;
-  const yy=y(val);ctx.save();ctx.strokeStyle=col;ctx.lineWidth=name==='PP'?1.8:1;ctx.setLineDash(name==='PP'?[]:[7,5]);ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.font='bold 9px Arial';ctx.fillText(name+' $'+fmt(val,0),L+5,yy+10);ctx.restore();
+  const yy=y(val);ctx.save();ctx.strokeStyle=col;ctx.globalAlpha=name==='PP'?.85:.48;ctx.lineWidth=name==='PP'?1.6:1;ctx.setLineDash(name==='PP'?[]:[5,6]);ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.setLineDash([]);
+  if(name==='PP'){ctx.globalAlpha=1;ctx.fillStyle=col;ctx.font='bold 9px Arial';ctx.fillText('PP',L+4,yy-4)}
+  ctx.restore();
  });
 }
 
 function drawSRBars(ctx,sr,y,L,R,w){
  const drawGroup=(levels,isSupport)=>{
   levels.forEach((q,idx)=>{
-   const yy=y(q.level);
-   if(!Number.isFinite(yy))return;
-   ctx.save();
-   const col=isSupport?'#39d98a':'#ff5d6c';
-   ctx.strokeStyle=col;ctx.lineWidth=idx===0?2.8:1.7;ctx.setLineDash(idx===0?[]:[8,5]);
+   const yy=y(q.level); if(!Number.isFinite(yy))return;
+   ctx.save(); const col=isSupport?'#39d98a':'#ff5d6c';
+   ctx.strokeStyle=col;ctx.globalAlpha=idx===0?.95:.38;ctx.lineWidth=idx===0?2.4:1.2;ctx.setLineDash(idx===0?[]:[6,6]);
    ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(w-R,yy);ctx.stroke();ctx.setLineDash([]);
-   ctx.fillStyle='rgba(10,15,22,.90)';
-   const pivotTag=q.pivot?' • PIVOT':'';
-   const label=`${isSupport?'S':'R'}${idx+1} $${fmt(q.level,0)} • ${q.strength}%${pivotTag}`;
-   const tw=ctx.measureText(label).width+14;
-   const bx=isSupport?L+8:w-R-tw-8;
-   const by=clamp(yy-11,chartView.T,chartView.h-chartView.B-20);
-   ctx.fillRect(bx,by,tw,18);
-   ctx.strokeStyle=col;ctx.lineWidth=1;ctx.strokeRect(bx,by,tw,18);
-   ctx.fillStyle=col;ctx.font='bold 10px Arial';ctx.fillText(label,bx+7,by+12);
-   ctx.fillStyle='#9aa8b8';ctx.font='9px Arial';
-   const source=q.source?` • ${q.source}`:'';
-   ctx.fillText(`${q.touches} touch${q.touches===1?'':'es'}${source}`,bx+7,by+29);
+   // Only the nearest/strongest level in each direction gets a label; the rest remain as quiet lines.
+   if(idx===0){
+    ctx.globalAlpha=1;ctx.font='bold 10px Arial';
+    const label=`${isSupport?'S':'R'} $${fmt(q.level,0)}`;
+    const tw=ctx.measureText(label).width+12,bx=isSupport?L+5:w-R-tw-5;
+    const by=clamp(yy-10,chartView.T+2,chartView.h-chartView.B-17);
+    ctx.fillStyle='rgba(10,15,22,.94)';ctx.fillRect(bx,by,tw,16);
+    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.strokeRect(bx,by,tw,16);
+    ctx.fillStyle=col;ctx.fillText(label,bx+6,by+11);
+   }
    ctx.restore();
   });
  };
@@ -637,7 +636,7 @@ function draw(t,p){
      ctx.save();ctx.strokeStyle=lineColor;ctx.lineWidth=2.5;ctx.setLineDash([7,4]);
      ctx.beginPath();ctx.moveTo(x(a.i),y(a.p));ctx.lineTo(x(endIndex),y(endPrice));ctx.stroke();ctx.setLineDash([]);
      ctx.fillStyle=labelColor;ctx.font='bold 10px Arial';
-     const label=(actingAsSupport?'MOVING SUPPORT $':'MOVING RESISTANCE $')+fmt(endPrice,0);
+     const label=(actingAsSupport?'MOVING S $':'MOVING R $')+fmt(endPrice,0);
      const ly=clamp(y(endPrice)-8,T+12,h-B-4);
      ctx.fillText(label,Math.max(L+5,w-R-ctx.measureText(label).width-5),ly);
      ctx.restore();
@@ -686,17 +685,17 @@ function drawPattern(ctx,p,x,y,L,R){
   }
   if(Number.isFinite(r)){ctx.font='bold 9px Arial';ctx.fillText('NECKLINE $'+fmt(r,0),L+5,y(r)-6);}
  }
- const labelW=205,labelH=82;
+ const labelW=174,labelH=62;
  const defaultX=clamp(right-labelW-8,L+8,right-labelW);
  const labelX=clamp(patternBoxPos.x==null?defaultX:patternBoxPos.x,L+8,right-labelW);
  const labelY=clamp(patternBoxPos.y==null?32:patternBoxPos.y,chartView.T,chartView.h-chartView.B-labelH);
  patternBoxPos.x=labelX;patternBoxPos.y=labelY;
  ctx.fillStyle='rgba(16,23,32,.96)';ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.fillRect(labelX,labelY,labelW,labelH);ctx.strokeRect(labelX,labelY,labelW,labelH);
- ctx.fillStyle=col;ctx.font='bold 12px Arial';ctx.fillText(p.name+' • '+p.score+'%',labelX+8,labelY+16);
- ctx.fillStyle='#edf3fa';ctx.font='10px Arial';
- const words=p.definition.split(' ');let line='',yy=labelY+31;
- for(const word of words){if((line+' '+word).length>34){ctx.fillText(line,labelX+8,yy);yy+=13;line=word;if(yy>labelY+69)break}else line+=(line?' ':'')+word}
- if(line&&yy<=labelY+69)ctx.fillText(line,labelX+8,yy);
+ ctx.fillStyle=col;ctx.font='bold 11px Arial';ctx.fillText(p.name+' • '+p.score+'%',labelX+7,labelY+14);
+ ctx.fillStyle='#edf3fa';ctx.font='9px Arial';
+ const words=p.definition.split(' ');let line='',yy=labelY+27;
+ for(const word of words){if((line+' '+word).length>29){ctx.fillText(line,labelX+7,yy);yy+=11;line=word;if(yy>labelY+52)break}else line+=(line?' ':'')+word}
+ if(line&&yy<=labelY+52)ctx.fillText(line,labelX+7,yy);
  ctx.restore();
 }
 
