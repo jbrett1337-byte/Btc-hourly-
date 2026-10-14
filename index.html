@@ -591,6 +591,24 @@ function draw(t,p){
  const bands=[['-3.6σ',t.b.m36,'#ff5d6c'],['-0.8σ',t.b.m08,'#ff5d6c'],['VWAP',t.b.vw,'#55c7ff'],['+0.8σ',t.b.p08,'#39d98a'],['+3.6σ',t.b.p36,'#39d98a']];
  bands.forEach(([name,val,col])=>{ctx.strokeStyle=col;ctx.setLineDash(name==='VWAP'?[]:[5,5]);ctx.beginPath();ctx.moveTo(L,y(val));ctx.lineTo(w-R,y(val));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.fillText(name+' $'+fmt(val,0),L+5,y(val)-4)});
  const sr=dynamicSR(data,t); drawPivotLines(ctx,sr.pivots,y,L,R,w); drawSRBars(ctx,sr,y,L,R,w);
+ // White stepped structure line: recent rolling swing level, changing role with price.
+ // This preserves the classic stair-step look while the projected trendline remains colored.
+ const stepLevels=data.map((k,i)=>{
+   const start=Math.max(0,i-11),slice=data.slice(start,i+1);
+   const lo=Math.min(...slice.map(z=>z.l)),hi=Math.max(...slice.map(z=>z.h));
+   const ref=i===data.length-1?price:k.c;
+   return ref>=((lo+hi)/2)?lo:hi;
+ });
+ if(stepLevels.length){
+   ctx.save();ctx.strokeStyle='#d9dce2';ctx.lineWidth=2.2;ctx.setLineDash([]);ctx.beginPath();
+   ctx.moveTo(x(0),y(stepLevels[0]));
+   for(let i=1;i<stepLevels.length;i++){ctx.lineTo(x(i),y(stepLevels[i-1]));ctx.lineTo(x(i),y(stepLevels[i]));}
+   ctx.stroke();ctx.restore();
+   const lastLevel=stepLevels[stepLevels.length-1],isSupport=price>=lastLevel;
+   ctx.save();ctx.fillStyle='#e5e7eb';ctx.font='bold 10px Arial';
+   const stepLabel=(isSupport?'Support $':'Resistance $')+fmt(lastLevel,2);
+   ctx.fillText(stepLabel,Math.max(L+5,w-R-ctx.measureText(stepLabel).width-5),clamp(y(lastLevel)-8,T+12,h-B-4));ctx.restore();
+ }
  // Moving resistance: connect the two latest confirmed swing highs, then project the slope to the live edge.
  // Two candles on either side are required so the line does not jump on every temporary wick.
  const swingHighs=[];
@@ -671,7 +689,7 @@ function drawPattern(ctx,p,x,y,L,R){
  const labelW=205,labelH=82;
  const defaultX=clamp(right-labelW-8,L+8,right-labelW);
  const labelX=clamp(patternBoxPos.x==null?defaultX:patternBoxPos.x,L+8,right-labelW);
- const labelY=clamp(patternBoxPos.y==null?32:patternBoxPos.y,chartView.T,h-B-labelH);
+ const labelY=clamp(patternBoxPos.y==null?32:patternBoxPos.y,chartView.T,chartView.h-chartView.B-labelH);
  patternBoxPos.x=labelX;patternBoxPos.y=labelY;
  ctx.fillStyle='rgba(16,23,32,.96)';ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.fillRect(labelX,labelY,labelW,labelH);ctx.strokeRect(labelX,labelY,labelW,labelH);
  ctx.fillStyle=col;ctx.font='bold 12px Arial';ctx.fillText(p.name+' • '+p.score+'%',labelX+8,labelY+16);
