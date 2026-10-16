@@ -100,7 +100,9 @@ canvas{width:100%;height:900px;display:block;touch-action:none;background:var(--
 </div>
 
 <div class="section" id="contractScanner"><h2>🎯 DraftKings BTC Contract Edge Scanner • 5 / 15 Minute</h2>
-<div class="card" style="margin-bottom:10px"><div class="note">Enter the current round’s settlement threshold and the actual Yes/No purchase prices shown by DraftKings. The estimate uses recent BTC candle volatility and a momentum adjustment; it is a model estimate, not a guaranteed probability. Re-enter the threshold when DraftKings opens a new round.</div></div>
+<div class="card" style="margin-bottom:10px"><div class="note">Automatic page-access test: this tries to read the public DraftKings 5/15-minute page from this website, detect a visible threshold, and refresh every 30 seconds. Browser security may block cross-site reading; if blocked, it will say so rather than invent contract data. Verify any detected threshold against the active DraftKings round before trading.</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button id="dkAutoScanNow" type="button" style="padding:10px 14px;border-radius:8px;border:1px solid var(--l);background:var(--p2);color:var(--t);font-weight:700">Scan DraftKings now</button><button id="dkAutoScanToggle" type="button" style="padding:10px 14px;border-radius:8px;border:1px solid var(--l);background:var(--p2);color:var(--t);font-weight:700">Start 30s auto-scan</button><a href="https://predictions.draftkings.com/en/markets/crypto/bitcoin?category=timeframe&subcategory=5---15-min" target="_blank" rel="noopener" style="padding:10px 14px;border-radius:8px;border:1px solid var(--l);color:var(--t);text-decoration:none">Open DraftKings page</a></div>
+<div id="dkAutoStatus" class="note" role="status" aria-live="polite" style="margin-top:10px">Not tested yet. Tap “Scan DraftKings now” to test whether this browser can read the page.</div><div id="dkAutoLast" class="mini" style="margin-top:5px">No scan completed.</div></div>
 <div class="grid5">
  <div class="card"><label class="label" for="dkThreshold">Settlement threshold ($)</label><input id="dkThreshold" type="number" step="0.01" placeholder="e.g. 81930.55" style="width:100%;margin-top:8px;background:var(--p2);color:var(--t);border:1px solid var(--l);border-radius:7px;padding:10px"></div>
  <div class="card"><label class="label" for="dkMinutes">Minutes to expiration</label><select id="dkMinutes" style="width:100%;margin-top:8px"><option value="5">5 minutes</option><option value="15">15 minutes</option></select></div>
@@ -872,6 +874,40 @@ $('chart').addEventListener('wheel',e=>{
   setChartZoom(chartZoom*(e.deltaY<0?1.18:.85));
 },{passive:false});
 setChartZoom(1);
+
+
+// Experimental DraftKings page-access test. GitHub Pages cannot bypass cross-origin restrictions;
+// the scanner only uses data if the public page response is actually readable.
+const DK_PAGE='https://predictions.draftkings.com/en/markets/crypto/bitcoin?category=timeframe&subcategory=5---15-min';
+let dkAutoTimer=null;
+async function runDKAutoScan(){
+ const status=$('dkAutoStatus'),last=$('dkAutoLast'),btn=$('dkAutoScanNow');
+ if(btn)btn.disabled=true;
+ if(status)status.textContent='Checking whether DraftKings exposes readable contract data…';
+ try{
+  const res=await fetchWithTimeout(DK_PAGE,9000);
+  if(!res.ok)throw new Error('DraftKings returned HTTP '+res.status);
+  const html=await res.text();
+  if(!html||html.length<1000)throw new Error('The page response did not contain usable content');
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  const text=(doc.body?.innerText||doc.body?.textContent||'').replace(/\s+/g,' ');
+  const matches=[...text.matchAll(/(?:Above|above|at or above|\$)\s*\$?([0-9]{1,3}(?:,[0-9]{3})+\.\d{1,2}|[0-9]{5,6}\.\d{1,2})/g)].map(m=>Number(m[1].replace(/,/g,''))).filter(Number.isFinite);
+  if(!matches.length)throw new Error('Page was readable, but no contract threshold could be reliably identified in its text');
+  const unique=[...new Set(matches)];
+  if(status)status.textContent='Page readable; found possible threshold value(s): '+unique.slice(0,6).map(v=>'$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})).join(', ')+'. Not auto-applied because this page text does not reliably identify which round is active.';
+  if(last)last.textContent='Last scan: '+new Date().toLocaleTimeString()+' • Candidate values require manual confirmation.';
+ }catch(e){
+  const msg=(e&&e.message)||String(e);
+  if(status)status.textContent=/Failed to fetch|NetworkError|Load failed|CORS|cross-origin/i.test(msg)?'BLOCKED: this browser cannot read DraftKings from GitHub Pages (cross-origin restriction). Automatic threshold extraction needs a server-side connector or an authorized feed.':'Scan failed: '+msg+'. No threshold was changed.';
+  if(last)last.textContent='Last scan attempt: '+new Date().toLocaleTimeString()+' • Manual values remain unchanged.';
+ }finally{if(btn)btn.disabled=false;}
+}
+if($('dkAutoScanNow'))$('dkAutoScanNow').addEventListener('click',runDKAutoScan);
+if($('dkAutoScanToggle'))$('dkAutoScanToggle').addEventListener('click',()=>{
+ const b=$('dkAutoScanToggle');
+ if(dkAutoTimer){clearInterval(dkAutoTimer);dkAutoTimer=null;b.textContent='Start 30s auto-scan';if($('dkAutoStatus'))$('dkAutoStatus').textContent='Automatic scan stopped.';}
+ else{runDKAutoScan();dkAutoTimer=setInterval(runDKAutoScan,30000);b.textContent='Stop auto-scan';if($('dkAutoStatus'))$('dkAutoStatus').textContent='Automatic scan enabled: testing page access every 30 seconds.';}
+});
 
 window.addEventListener('error',e=>{if(e?.message){err('Engine error: '+e.message)}});
 window.addEventListener('unhandledrejection',e=>{const m=e?.reason?.message||String(e?.reason||'Unknown promise error');err('Engine error: '+m)});
